@@ -1,0 +1,61 @@
+# Source files (only dist/ should be published)
+src/
+tsconfig*.json
+*.tsbuildinfo
+
+# Development files
+.eslintrc*
+eslint.config.js
+.prettierrc*
+jest.config.*
+.vscode/
+.idea/
+
+# Examples and docs (GitHub only, not npm)
+examples/
+docs/
+*.md
+!README.md
+
+# Development dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+Thumbs.db
+
+# Build artifacts
+coverage/
+.nyc_output/
+reports/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+**/*.test.*
+**/*.spec.*
+__tests__/
+test/
+tests/
+
+# Development scripts that shouldn't be published
+scripts/
+tools/
+.github/

@@ -1,0 +1,101 @@
+{
+  "name": "@neabyte/canvas",
+  "version": "0.1.0",
+  "description": "🎨 Universal canvas framework for Node.js and browser environments. Personal use only - Commercial license required for business use.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && tsc-alias -f -fe .js && npm run minify",
+    "minify": "find dist -name '*.js' -exec terser {} --compress --mangle -o {} \\;",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*",
+    "lint:fix": "eslint src/**/* --fix",
+    "format": "prettier --write src/**/*",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "docs": "typedoc src/index.ts --out docs",
+    "type-check": "tsc --noEmit",
+    "check-all": "npm run lint && npm run type-check && npm run test"
+  },
+  "keywords": [
+    "canvas",
+    "2d-graphics",
+    "drawing",
+    "graphics",
+    "multi-layout",
+    "typescript",
+    "nodejs",
+    "browser",
+    "universal",
+    "export",
+    "png",
+    "jpeg",
+    "svg",
+    "pdf",
+    "personal-use",
+    "commercial-license",
+    "enterprise",
+    "framework",
+    "alpha"
+  ],
+  "author": {
+    "name": "NeaByteLab",
+    "email": "me@neabyte.com",
+    "url": "https://github.com/NeaByteLab"
+  },
+  "license": "PROPRIETARY",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NeaByteLab/NeaCanvas.git"
+  },
+  "homepage": "https://github.com/NeaByteLab/NeaCanvas#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/gl": "^6.0.5",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-sonarjs": "^3.0.4",
+    "jest": "^30.0.5",
+    "prettier": "^3.6.2",
+    "terser": "^5.43.1",
+    "ts-jest": "^29.4.1",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
+    "typedoc": "^0.28.10",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=8.0.0",
+    "typescript": ">=5.9.0"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "COMMERCIAL-LICENSE.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "private": false,
+  "dependencies": {
+    "canvas": "^3.1.2",
+    "gl": "^8.1.6"
+  }
+}
