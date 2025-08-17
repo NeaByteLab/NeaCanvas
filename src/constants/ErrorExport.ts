@@ -1,6 +1,7 @@
 /**
  * Error messages for export operations
  * Centralizes all export-related error messages for consistent user feedback
+ * @internal Framework use only, not exposed to public API
  */
 export const ErrorExport = {
   /** Error when PNG blob creation fails */

@@ -1,14 +1,14 @@
 /**
  * Interfaces for NeaLayout system
  * Handles layout management, canvas operations, and drawing coordination
+ * @internal Framework use only, not exposed to public API
  */
 
+import type { LayoutConfig, DrawConfig } from '@interfaces/index'
 import type {
   UniversalCanvas,
-  UniversalCanvasContext,
-  LayoutConfig,
-  DrawConfig
-} from '@interfaces/index'
+  UniversalCanvasContext
+} from '@interfaces/NeaExport'
 import type { DirtyRegion, SmartMetrics } from '@framework/NeaSmart'
 
 /** Cross-environment canvas types for NeaLayout */
@@ -22,8 +22,8 @@ export type LayoutCanvasContext = UniversalCanvasContext
 export interface LayoutNodeCanvas extends HTMLCanvasElement {
   /**
    * Converts canvas to buffer with specified MIME type and quality
-   * @param mimeType - MIME type for the output format
-   * @param options - Quality options for the output
+   * @param mimeType MIME type for the output format
+   * @param options Quality options for the output
    * @returns Buffer containing the canvas data
    */
   toBuffer(mimeType: string, options?: { quality?: number }): Buffer
@@ -140,7 +140,7 @@ export interface DrawingOperationResult {
     shapeType: string
     /** Coordinates where shape was drawn */
     coordinates: { x: number; y: number }
-    /** Operation duration in milliseconds - must be non-negative */
+    /** Operation duration in milliseconds */
     duration: number
   }
   /** Dirty regions affected by this operation */
@@ -149,15 +149,15 @@ export interface DrawingOperationResult {
 
 /** Layout bounds information for positioning and sizing */
 export interface LayoutBounds {
-  /** Logical width in CSS pixels - must be positive */
+  /** Logical width in CSS pixels */
   logicalWidth: number
-  /** Logical height in CSS pixels - must be positive */
+  /** Logical height in CSS pixels */
   logicalHeight: number
-  /** Actual width in device pixels - must be positive */
+  /** Actual width in device pixels */
   actualWidth: number
-  /** Actual height in device pixels - must be positive */
+  /** Actual height in device pixels */
   actualHeight: number
-  /** Device pixel ratio - must be positive */
+  /** Device pixel ratio */
   devicePixelRatio: number
   /** X position offset */
   x: number
@@ -231,23 +231,23 @@ export interface LayoutEventData {
 
 /** Layout statistics for performance monitoring */
 export interface LayoutStatistics {
-  /** Total shapes created - must be non-negative */
+  /** Total shapes created */
   totalShapes: number
   /** Shapes by type */
   shapesByType: Record<string, number>
-  /** Average drawing time per shape in milliseconds - must be non-negative */
+  /** Average drawing time per shape in milliseconds */
   averageDrawingTime: number
-  /** Total drawing operations - must be non-negative */
+  /** Total drawing operations */
   totalOperations: number
-  /** Failed operations count - must be non-negative */
+  /** Failed operations count */
   failedOperations: number
   /** High DPI usage statistics */
   highDPIStats: {
     /** Whether high DPI is enabled */
     enabled: boolean
-    /** Device pixel ratio used - must be positive */
+    /** Device pixel ratio used */
     devicePixelRatio: number
-    /** Memory usage in bytes - must be non-negative */
+    /** Memory usage in bytes */
     memoryUsage: number
   }
 }

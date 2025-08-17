@@ -1,3 +1,9 @@
+/**
+ * Interfaces for NeaSmart optimization system
+ * Handles batching, caching, pooling, and performance optimization
+ * @internal - Framework use only, not exposed to public API
+ */
+
 import type { DrawConfig } from '@interfaces/index'
 import type { UniversalCanvas } from '@interfaces/NeaExport'
 

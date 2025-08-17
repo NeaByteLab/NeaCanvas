@@ -20,6 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - TBD (no fixes yet for unreleased version)
 
+---
+
+## [0.1.1] - 2025-08-17
+
+### Changed
+- Configuration methods changed to private for better encapsulation
+- Refactored methods by splitting functionality into utility functions
+- Updated package.json to restrict direct access to internal modules
+
+### Fixed
+- Improved error messages for better debugging experience
+
+---
+
 ## [0.1.0] - 2025-08-17
 
 ### Added
@@ -79,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **0.1.1**: Code quality improvements, better error handling, and internal refactoring
 - **0.1.0**: Initial release with core framework and 2D drawing capabilities
 - **Future**: Interactive features, 3D support, and advanced optimizations
 

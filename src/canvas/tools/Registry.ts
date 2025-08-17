@@ -1,7 +1,7 @@
 import type { DrawConfig } from '@interfaces/index'
 import { PathUtils } from '@tools/2d/PathUtils'
 import * as Tools2D from '@tools/2d'
-import { Default } from '@constants/index'
+import { Default } from '@constants/Default'
 
 /**
  * Tool Registry for managing drawing tools

@@ -1,4 +1,10 @@
 /**
+ * Public configuration interfaces for NeaCanvas users
+ * These are the only interfaces users need to interact with the framework
+ * @public - Exposed to end users via main index.ts
+ */
+
+/**
  * Configuration for canvas initialization
  */
 export interface CanvasConfig {

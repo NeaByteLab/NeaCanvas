@@ -1,6 +1,7 @@
 /**
  * Default configuration values for canvas operations
  * Provides standard values for shapes, layouts, and export settings
+ * @internal Framework use only, not exposed to public API
  */
 export const Default = {
   /** Default fill color for shapes - transparent by default */
@@ -44,7 +45,7 @@ export const Default = {
   /** Maximum radius value in pixels */
   MAX_RADIUS: 10000,
   /** Maximum dimension (width/height) in pixels */
-  MAX_DIMENSION: 100000,
+  MAX_DIMENSION: 16384,
   /** Maximum coordinate range (positive/negative) */
   COORDINATE_RANGE: 1000000,
   /** Maximum stroke width in pixels */

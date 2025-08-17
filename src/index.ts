@@ -1,11 +1,6 @@
 /**
- * NeaCanvas - Canvas framework for Node.js and browser environments
- * 
- * Main public API - only NeaCanvas can be accessed by public
+ * Canvas framework for Node.js and browser environments.
+ * Provides a single entry point for canvas operations including layout management,
+ * drawing operations, rendering, and export functionality.
  */
 export { NeaCanvas } from '@framework/NeaCanvas'
-
-/**
- * Type definitions for canvas configuration and operations
- */
-export type * from '@interfaces/index'

@@ -1,22 +1,17 @@
 /**
- * Framework interfaces module
- * Exports all interface definitions for canvas operations, drawing, export, and smart features
+ * Public interfaces for NeaCanvas users
+ * Only exports interfaces that end users need to interact with
+ * @public - These are the only interfaces exposed to users
  */
 
-// Core configuration interfaces
-export * from '@interfaces/NeaOptions'
-
-// Performance and smart optimization interfaces
-export * from '@interfaces/NeaSmart'
-
-// Export and canvas type interfaces
-export * from '@interfaces/NeaExport'
-
-// Layout management interfaces
-export * from '@interfaces/NeaLayout'
-
-// Unified canvas types for cross-environment compatibility
+// ✅ PUBLIC - Core configuration interfaces users need
 export type {
-  UniversalCanvas,
-  UniversalCanvasContext
-} from '@interfaces/NeaExport'
+  CanvasConfig,
+  LayoutConfig,
+  DrawConfig,
+  ExportConfig
+} from '@interfaces/NeaOptions'
+
+// 🔒 INTERNAL - Framework interfaces are not exported
+// Users don't need: NeaExport, NeaLayout, NeaSmart interfaces
+// Framework components import these directly when needed

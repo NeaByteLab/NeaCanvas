@@ -1,11 +1,11 @@
 # 🎨 NeaCanvas ✨
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.1-blue)
 ![License](https://img.shields.io/badge/license-PROPRIETARY-red)
 ![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-green)
 ![TypeScript](https://img.shields.io/badge/typescript-%3E%3D5.9.0-blue)
 
-⚠️ **ALPHA VERSION 0.1.0 - NOT FOR PRODUCTION USE**
+⚠️ **ALPHA VERSION 0.1.1 - NOT FOR PRODUCTION USE**
 
 Universal canvas framework for Node.js and browser environments with TypeScript support.
 

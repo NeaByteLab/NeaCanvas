@@ -1,16 +1,13 @@
-import type {
-  UniversalCanvas,
-  NodeCanvas,
-  DrawConfig,
-  ExportConfig
-} from '@interfaces/index'
+import type { DrawConfig, ExportConfig } from '@interfaces/index'
+import type { UniversalCanvas, NodeCanvas } from '@interfaces/NeaExport'
 import type { NeaLayout } from '@framework/NeaLayout'
-import { Default, MimeType, ErrorExport } from '@constants/index'
+import { Default, MimeType } from '@constants/Default'
+import { ErrorExport } from '@constants/ErrorExport'
 import { isNode } from '@canvas/Environment'
 
 /**
- * Handles export operations for canvas layouts in various formats
- * Supports PNG, JPEG, SVG, and PDF export with quality control
+ * Handles exporting of canvas layouts in various formats such as PNG, JPEG, SVG, and PDF.
+ * Provides methods for generating export data from layouts.
  */
 export class NeaExport {
   private canvasWidth: number
@@ -18,11 +15,10 @@ export class NeaExport {
   private canvasBackgroundColor: string | 'transparent'
 
   /**
-   * Creates a new export instance
-   * @param canvasWidth - Fixed canvas width from NeaCanvas.init()
-   * @param canvasHeight - Fixed canvas height from NeaCanvas.init()
-   * @param canvasBackgroundColor - Canvas background color from NeaCanvas.init()
-   * @throws Error if configuration parameters are invalid
+   * Constructs a new export handler for the given canvas dimensions and background color.
+   * @param canvasWidth Canvas width in pixels
+   * @param canvasHeight Canvas height in pixels
+   * @param canvasBackgroundColor Background color for the canvas
    */
   constructor(
     canvasWidth: number,
@@ -35,9 +31,9 @@ export class NeaExport {
   }
 
   /**
-   * Exports layouts in the specified format
-   * @param options - Export configuration
-   * @param layouts - Map of layouts to export
+   * Exports all layouts in the specified format.
+   * @param options Export configuration
+   * @param layouts Map of layouts to export
    * @returns Promise resolving to exported data as Buffer or Blob
    * @throws Error if no layouts exist, no shapes drawn, or unsupported format
    */
@@ -50,8 +46,7 @@ export class NeaExport {
     }
     let hasShapes = false
     for (const layout of layouts.values()) {
-      layout.flush()
-      if (layout.getShapes().size > 0) {
+      if (layout.getShapesForFramework().size > 0) {
         hasShapes = true
         break
       }
@@ -75,9 +70,9 @@ export class NeaExport {
   }
 
   /**
-   * Exports layouts as PNG image
-   * @param options - Export configuration with quality
-   * @param layouts - Map of layouts to export
+   * Exports layouts as a PNG image.
+   * @param options Export configuration with quality
+   * @param layouts Map of layouts to export
    * @returns Promise resolving to PNG data as Buffer or Blob
    * @throws Error if PNG export fails or blob creation fails
    */
@@ -108,9 +103,9 @@ export class NeaExport {
   }
 
   /**
-   * Exports layouts as JPEG image
-   * @param options - Export configuration with quality
-   * @param layouts - Map of layouts to export
+   * Exports layouts as a JPEG image.
+   * @param options Export configuration with quality
+   * @param layouts Map of layouts to export
    * @returns Promise resolving to JPEG data as Buffer or Blob
    * @throws Error if JPEG export fails or blob creation fails
    */
@@ -141,9 +136,9 @@ export class NeaExport {
   }
 
   /**
-   * Exports layouts as SVG format
-   * @param _options - Export configuration (currently unused)
-   * @param layouts - Map of layouts to export
+   * Exports layouts as SVG format.
+   * @param _options Export configuration (currently unused)
+   * @param layouts Map of layouts to export
    * @returns Promise resolving to SVG data as Buffer or Blob
    * @throws Error if SVG content creation fails
    */
@@ -160,9 +155,9 @@ export class NeaExport {
   }
 
   /**
-   * Exports layouts as PDF format
-   * @param _options - Export configuration (currently unused)
-   * @param layouts - Map of layouts to export
+   * Exports layouts as PDF format.
+   * @param _options Export configuration (currently unused)
+   * @param layouts Map of layouts to export
    * @returns Promise resolving to PDF data as Buffer or Blob
    * @throws Error if PDF export fails or browser environment not supported
    */
@@ -183,7 +178,7 @@ export class NeaExport {
           throw new Error(ErrorExport.PDF_CANVAS_CONTEXT_FAILED)
         }
         for (const layout of layouts.values()) {
-          const layoutCanvas = layout.getCanvas()
+          const layoutCanvas = layout.getCanvasForFramework()
           if (!layoutCanvas) {
             throw new Error(ErrorExport.LAYOUT_CANVAS_MISSING_COMPOSITE)
           }
@@ -205,8 +200,8 @@ export class NeaExport {
   }
 
   /**
-   * Creates a composite canvas from all layouts
-   * @param layouts - Map of layouts to composite
+   * Creates a composite canvas from all layouts.
+   * @param layouts Map of layouts to composite
    * @returns Canvas element with all layouts composited
    * @throws Error if composite canvas creation fails
    */
@@ -221,8 +216,8 @@ export class NeaExport {
   }
 
   /**
-   * Creates composite canvas for Node.js environment
-   * @param layouts - Map of layouts to composite
+   * Creates a composite canvas for Node.js environment.
+   * @param layouts Map of layouts to composite
    * @returns Node.js canvas with all layouts composited
    * @throws Error if canvas creation fails or context is unavailable
    */
@@ -251,8 +246,8 @@ export class NeaExport {
   }
 
   /**
-   * Creates composite canvas for browser environment
-   * @param layouts - Map of layouts to composite
+   * Creates a composite canvas for browser environment.
+   * @param layouts Map of layouts to composite
    * @returns HTML canvas with all layouts composited
    * @throws Error if canvas context is unavailable
    */
@@ -278,9 +273,9 @@ export class NeaExport {
   }
 
   /**
-   * Draws all layouts to the given context
-   * @param ctx - Canvas 2D context to draw on
-   * @param layouts - Map of layouts to draw
+   * Draws all layouts to the given canvas context.
+   * @param ctx Canvas 2D context to draw on
+   * @param layouts Map of layouts to draw
    * @throws Error if layout canvas is missing during composition
    */
   private drawLayoutsToContext(
@@ -289,7 +284,7 @@ export class NeaExport {
     layouts: Map<string, NeaLayout>
   ): void {
     for (const layout of layouts.values()) {
-      const layoutCanvas = layout.getCanvas()
+      const layoutCanvas = layout.getCanvasForFramework()
       if (!layoutCanvas) {
         throw new Error(ErrorExport.LAYOUT_CANVAS_MISSING_COMPOSITE)
       }
@@ -300,8 +295,8 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG content from layouts
-   * @param layouts - Map of layouts to convert
+   * Creates SVG content from layouts.
+   * @param layouts Map of layouts to convert
    * @returns SVG string content with all shapes and backgrounds
    * @throws Error if SVG generation fails
    */
@@ -311,7 +306,7 @@ export class NeaExport {
     let svgContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`
     for (const layout of layouts.values()) {
       const config = layout.getConfig()
-      const shapes = layout.getShapes()
+      const shapes = layout.getShapesForFramework()
       svgContent += `<g transform="translate(${config.x || Default.LAYOUT_X}, ${config.y || Default.LAYOUT_Y})">`
       if (config.backgroundColor && config.backgroundColor !== 'transparent') {
         svgContent += `<rect x="0" y="0" width="${config.width}" height="${config.height}" fill="${config.backgroundColor}"/>`
@@ -327,9 +322,9 @@ export class NeaExport {
   }
 
   /**
-   * Converts a shape to SVG element string
-   * @param type - Shape type identifier
-   * @param options - Shape drawing configuration
+   * Converts a shape to an SVG element string.
+   * @param type Shape type identifier
+   * @param options Shape drawing configuration
    * @returns SVG element string representation
    * @throws Error if shape conversion fails
    */
@@ -522,12 +517,12 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG for polygon shapes with proper point calculation
-   * @param type - Polygon type identifier
-   * @param options - Drawing configuration
-   * @param fill - Fill color
-   * @param stroke - Stroke color
-   * @param strokeWidth - Stroke width
+   * Creates SVG for polygon shapes with proper point calculation.
+   * @param type Polygon type identifier
+   * @param options Drawing configuration
+   * @param fill Fill color
+   * @param stroke Stroke color
+   * @param strokeWidth Stroke width
    * @returns SVG polygon element string
    */
   private createPolygonSVG(
@@ -546,12 +541,12 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG for star shapes
-   * @param type - Star type identifier
-   * @param options - Drawing configuration
-   * @param fill - Fill color
-   * @param stroke - Stroke color
-   * @param strokeWidth - Stroke width
+   * Creates SVG for star shapes.
+   * @param type Star type identifier
+   * @param options Drawing configuration
+   * @param fill Fill color
+   * @param stroke Stroke color
+   * @param strokeWidth Stroke width
    * @returns SVG star element string
    */
   private createStarSVG(
@@ -569,12 +564,12 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG for curved shapes
-   * @param type - Curved shape type identifier
-   * @param options - Drawing configuration
-   * @param fill - Fill color
-   * @param stroke - Stroke color
-   * @param strokeWidth - Stroke width
+   * Creates SVG for curved shapes.
+   * @param type Curved shape type identifier
+   * @param options Drawing configuration
+   * @param fill Fill color
+   * @param stroke Stroke color
+   * @param strokeWidth Stroke width
    * @returns SVG curved shape element string
    */
   private createCurvedSVG(
@@ -598,12 +593,12 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG for specialized shapes
-   * @param type - Specialized shape type identifier
-   * @param options - Drawing configuration
-   * @param fill - Fill color
-   * @param stroke - Stroke color
-   * @param strokeWidth - Stroke width
+   * Creates SVG for specialized shapes.
+   * @param type Specialized shape type identifier
+   * @param options Drawing configuration
+   * @param fill Fill color
+   * @param stroke Stroke color
+   * @param strokeWidth Stroke width
    * @returns SVG specialized shape element string
    */
   private createSpecializedSVG(
@@ -636,12 +631,12 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG for geometric shapes
-   * @param type - Geometric shape type identifier
-   * @param options - Drawing configuration
-   * @param fill - Fill color
-   * @param stroke - Stroke color
-   * @param strokeWidth - Stroke width
+   * Creates SVG for geometric shapes.
+   * @param type Geometric shape type identifier
+   * @param options Drawing configuration
+   * @param fill Fill color
+   * @param stroke Stroke color
+   * @param strokeWidth Stroke width
    * @returns SVG geometric shape element string
    */
   private createGeometricSVG(
@@ -669,12 +664,12 @@ export class NeaExport {
   }
 
   /**
-   * Creates SVG for pattern shapes
-   * @param type - Pattern shape type identifier
-   * @param options - Drawing configuration
-   * @param fill - Fill color
-   * @param stroke - Stroke color
-   * @param strokeWidth - Stroke width
+   * Creates SVG for pattern shapes.
+   * @param type Pattern shape type identifier
+   * @param options Drawing configuration
+   * @param fill Fill color
+   * @param stroke Stroke color
+   * @param strokeWidth Stroke width
    * @returns SVG pattern shape element string
    */
   private createPatternSVG(
@@ -705,8 +700,8 @@ export class NeaExport {
   }
 
   /**
-   * Gets the number of sides for a polygon shape
-   * @param type - Polygon type identifier
+   * Gets the number of sides for a polygon shape.
+   * @param type Polygon type identifier
    * @returns Number of sides for the polygon
    */
   private getPolygonSides(type: string): number {
@@ -744,11 +739,11 @@ export class NeaExport {
   }
 
   /**
-   * Calculates polygon points for SVG
-   * @param centerX - Center X coordinate
-   * @param centerY - Center Y coordinate
-   * @param radius - Polygon radius
-   * @param sides - Number of polygon sides
+   * Calculates polygon points for SVG.
+   * @param centerX Center X coordinate
+   * @param centerY Center Y coordinate
+   * @param radius Polygon radius
+   * @param sides Number of polygon sides
    * @returns Space-separated string of polygon points
    */
   private calculatePolygonPoints(
@@ -769,11 +764,11 @@ export class NeaExport {
   }
 
   /**
-   * Calculates star points for SVG
-   * @param centerX - Center X coordinate
-   * @param centerY - Center Y coordinate
-   * @param radius - Star radius
-   * @param type - Star type identifier
+   * Calculates star points for SVG.
+   * @param centerX Center X coordinate
+   * @param centerY Center Y coordinate
+   * @param radius Star radius
+   * @param type Star type identifier
    * @returns Space-separated string of star points
    */
   private calculateStarPoints(

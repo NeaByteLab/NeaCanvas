@@ -1,5 +1,5 @@
+import type { DrawConfig } from '@interfaces/index'
 import type {
-  DrawConfig,
   DrawOperation,
   DirtyRegion,
   PooledCanvas,
@@ -8,20 +8,21 @@ import type {
   GradientConfig,
   GradientStop,
   PooledCanvasElement
-} from '@interfaces/index'
+} from '@interfaces/NeaSmart'
 import { ToolRegistry } from '@canvas/tools/Registry'
 import { isNode } from '@canvas/Environment'
-import { Default } from '@constants/index'
+import { Default } from '@constants/Default'
+import { ErrorCanvas } from '@constants/ErrorCanvas'
 
 /** Canvas context type for cross-environment compatibility */
 type CanvasContext = CanvasRenderingContext2D | Record<string, unknown>
 
 /** Re-export interfaces for external use */
-export type { DirtyRegion, SmartMetrics } from '@interfaces/index'
+export type { DirtyRegion, SmartMetrics } from '@interfaces/NeaSmart'
 
 /**
- * Optimization system for NeaLayout
- * Handles batching, caching, canvas pooling, and dirty region tracking
+ * Provides optimization for layout drawing, including batching, caching, pooling, and dirty region tracking.
+ * Used internally by layout management to improve performance and resource usage.
  */
 export class NeaSmart {
   private drawQueue: DrawOperation[] = []
@@ -53,16 +54,25 @@ export class NeaSmart {
   private readonly NONE = 'none'
 
   /**
-   * Queues a draw operation for batching
-   * @param shape - Shape type to draw
-   * @param options - Drawing options
+   * Queues a draw operation for batching.
+   * @param shape Shape type to draw
+   * @param options Drawing options
+   * @param layoutName Name of the layout for error tracking
    * @returns Operation ID for tracking
    * @throws Error if operation queuing fails
    */
-  queue(shape: string, options: DrawConfig): string {
+  queue(
+    shape: string,
+    options: DrawConfig,
+    layoutName: string = 'unknown'
+  ): string {
     if (!ToolRegistry.has(shape)) {
       throw new Error(
-        `Unknown drawing tool: '${shape}'. Available tools: ${ToolRegistry.getAvailableTools().slice(0, 10).join(', ')}...`
+        ErrorCanvas.UNKNOWN_DRAWING_TOOL(
+          layoutName,
+          shape,
+          ToolRegistry.getAvailableTools().slice(0, 10).join(', ')
+        )
       )
     }
     const operation: DrawOperation = {
@@ -80,8 +90,8 @@ export class NeaSmart {
   }
 
   /**
-   * Flushes all queued operations
-   * @param ctx - Canvas context to draw on (optional)
+   * Flushes all queued draw operations, optionally to a provided canvas context.
+   * @param ctx Canvas context to draw on (optional)
    */
   flush(ctx?: CanvasContext): void {
     if (this.drawQueue.length === 0) {
@@ -94,9 +104,9 @@ export class NeaSmart {
   }
 
   /**
-   * Executes a batch of draw operations with state batching
-   * @param ctx - Canvas context
-   * @param operations - Operations to execute
+   * Executes a batch of draw operations, grouping by canvas state.
+   * @param ctx Canvas context
+   * @param operations Operations to execute
    * @throws Error if canvas context operations fail
    */
   private executeBatch(ctx: CanvasContext, operations: DrawOperation[]): void {
@@ -115,8 +125,8 @@ export class NeaSmart {
   }
 
   /**
-   * Groups operations by similar canvas state
-   * @param operations - Operations to group
+   * Groups draw operations by similar canvas state for efficient batching.
+   * @param operations Operations to group
    * @returns Map of state keys to operations
    */
   private groupOperationsByState(
@@ -134,8 +144,8 @@ export class NeaSmart {
   }
 
   /**
-   * Generates a state key for grouping operations
-   * @param options - Drawing options
+   * Generates a state key for grouping operations.
+   * @param options Drawing options
    * @returns State key string
    */
   private getStateKey(options: DrawConfig): string {
@@ -152,9 +162,9 @@ export class NeaSmart {
   }
 
   /**
-   * Applies canvas state to context
-   * @param ctx - Canvas context
-   * @param stateKey - State key to apply
+   * Applies a canvas state to the context.
+   * @param ctx Canvas context
+   * @param stateKey State key to apply
    * @throws Error if state parsing fails
    */
   private applyCanvasState(ctx: CanvasContext, stateKey: string): void {
@@ -189,9 +199,9 @@ export class NeaSmart {
   }
 
   /**
-   * Executes a single draw operation
-   * @param ctx - Canvas context
-   * @param operation - Operation to execute
+   * Executes a single draw operation using the appropriate tool.
+   * @param ctx Canvas context
+   * @param operation Operation to execute
    * @throws Error if tool execution fails or tool not found
    */
   private executeDrawOperation(
@@ -212,7 +222,7 @@ export class NeaSmart {
         } else {
           this.handleOperationFailure(
             operation,
-            new Error(`Unknown shape tool: ${operation.shape}`)
+            new Error(ErrorCanvas.UNKNOWN_SHAPE_TOOL(operation.shape))
           )
         }
       })
@@ -222,9 +232,9 @@ export class NeaSmart {
   }
 
   /**
-   * Applies operation-specific options to the context
-   * @param ctx - Canvas context
-   * @param options - Drawing options
+   * Applies operation-specific drawing options to the context.
+   * @param ctx Canvas context
+   * @param options Drawing options
    */
   private applyOperationOptions(ctx: CanvasContext, options: DrawConfig): void {
     if (options.fill && options.fill !== this.TRANSPARENT) {
@@ -255,9 +265,9 @@ export class NeaSmart {
   }
 
   /**
-   * Handles operation failures and manages retries
-   * @param operation - Failed operation
-   * @param error - Error that caused the failure
+   * Handles a failed draw operation and manages retry logic.
+   * @param operation Failed operation
+   * @param error Error that caused the failure
    */
   private handleOperationFailure(operation: DrawOperation, error: Error): void {
     const existing = this.failedOperations.get(operation.id)
@@ -279,8 +289,8 @@ export class NeaSmart {
   }
 
   /**
-   * Retries a failed operation
-   * @param operationId - ID of operation to retry
+   * Retries a failed operation by re-queuing it.
+   * @param operationId ID of operation to retry
    */
   private retryOperation(operationId: string): void {
     const failed = this.failedOperations.get(operationId)
@@ -290,20 +300,20 @@ export class NeaSmart {
     const { operation, retryCount } = failed
     this.drawQueue.unshift(operation)
     console.log(
-      `Retrying operation ${operation.shape} (attempt ${retryCount + 1})`
+      ErrorCanvas.OPERATION_RETRY_LOG(operation.shape, retryCount + 1)
     )
     this.failedOperations.delete(operationId)
   }
 
   /**
-   * Emits operation failed event (placeholder for future event system)
-   * @param operation - Failed operation
-   * @param error - Error that caused the failure
+   * Emits a permanent failure event for an operation (logs to console).
+   * @param operation Failed operation
+   * @param error Error that caused the failure
    */
   private emitOperationFailed(operation: DrawOperation, error: Error): void {
     // TODO: Implement event system for user notification
     // For now, just log the permanent failure
-    console.error(`Operation permanently failed: ${operation.shape}`, {
+    console.error(ErrorCanvas.OPERATION_PERMANENT_FAILURE(operation.shape), {
       operationId: operation.id,
       shape: operation.shape,
       error: error.message,
@@ -312,9 +322,9 @@ export class NeaSmart {
   }
 
   /**
-   * Gets cached fill style (color or gradient)
-   * @param ctx - Canvas context
-   * @param fillStyle - Fill style to get
+   * Gets a cached fill style (color or gradient) for the context.
+   * @param ctx Canvas context
+   * @param fillStyle Fill style to get
    * @returns Cached or new fill style
    * @throws Error if gradient creation fails
    */
@@ -340,9 +350,9 @@ export class NeaSmart {
   }
 
   /**
-   * Creates a gradient with caching
-   * @param ctx - Canvas context
-   * @param gradientConfig - Gradient configuration
+   * Creates a gradient for the context, with caching.
+   * @param ctx Canvas context
+   * @param gradientConfig Gradient configuration
    * @returns Canvas gradient
    * @throws Error if gradient creation fails
    */
@@ -378,9 +388,9 @@ export class NeaSmart {
   }
 
   /**
-   * Gets a canvas from the pool or creates a new one
-   * @param width - Canvas width
-   * @param height - Canvas height
+   * Gets a canvas from the pool or creates a new one.
+   * @param width Canvas width
+   * @param height Canvas height
    * @returns Promise resolving to canvas element
    * @throws Error if Node.js canvas creation fails
    */
@@ -408,10 +418,10 @@ export class NeaSmart {
   }
 
   /**
-   * Returns a canvas to the pool for reuse
-   * @param canvas - Canvas to return
-   * @param width - Canvas width
-   * @param height - Canvas height
+   * Returns a canvas to the pool for reuse.
+   * @param canvas Canvas to return
+   * @param width Canvas width
+   * @param height Canvas height
    */
   returnCanvas(
     canvas: PooledCanvasElement,
@@ -439,9 +449,9 @@ export class NeaSmart {
   }
 
   /**
-   * Creates a Node.js canvas
-   * @param width - Canvas width
-   * @param height - Canvas height
+   * Creates a Node.js canvas for pooling.
+   * @param width Canvas width
+   * @param height Canvas height
    * @returns Node.js canvas
    * @throws Error if canvas package is not installed
    */
@@ -453,18 +463,16 @@ export class NeaSmart {
       const { createCanvas } = await import('canvas')
       return createCanvas(width, height) as unknown as PooledCanvasElement
     } catch {
-      throw new Error(
-        'Canvas package not installed. Please run: npm install canvas'
-      )
+      throw new Error(ErrorCanvas.NODE_CANVAS_PACKAGE_MISSING)
     }
   }
 
   /**
-   * Marks a region as dirty for partial redraws
-   * @param x - Region X coordinate
-   * @param y - Region Y coordinate
-   * @param width - Region width
-   * @param height - Region height
+   * Marks a region as dirty for partial redraws.
+   * @param x Region X coordinate
+   * @param y Region Y coordinate
+   * @param width Region width
+   * @param height Region height
    */
   markDirty(x: number, y: number, width: number, height: number): void {
     const region: DirtyRegion = { x, y, width, height }
@@ -478,8 +486,8 @@ export class NeaSmart {
   }
 
   /**
-   * Merges dirty regions to reduce overlap
-   * @param newRegion - New region to merge
+   * Merges a new dirty region with existing ones if they overlap.
+   * @param newRegion New region to merge
    * @returns True if merged, false if added as new
    */
   private mergeDirtyRegions(newRegion: DirtyRegion): boolean {
@@ -497,9 +505,9 @@ export class NeaSmart {
   }
 
   /**
-   * Checks if two regions overlap
-   * @param region1 - First region
-   * @param region2 - Second region
+   * Checks if two regions overlap.
+   * @param region1 First region
+   * @param region2 Second region
    * @returns True if regions overlap
    */
   private regionsOverlap(region1: DirtyRegion, region2: DirtyRegion): boolean {
@@ -512,9 +520,9 @@ export class NeaSmart {
   }
 
   /**
-   * Merges two overlapping regions
-   * @param region1 - First region
-   * @param region2 - Second region
+   * Merges two overlapping regions into a single region.
+   * @param region1 First region
+   * @param region2 Second region
    * @returns Merged region or undefined if merge fails
    * @throws Error if region calculation fails
    */
@@ -536,7 +544,7 @@ export class NeaSmart {
   }
 
   /**
-   * Gets all dirty regions for partial redraw
+   * Gets all dirty regions for partial redraw.
    * @returns Array of dirty regions
    */
   getDirtyRegions(): DirtyRegion[] {
@@ -544,7 +552,7 @@ export class NeaSmart {
   }
 
   /**
-   * Clears all dirty regions after redraw
+   * Clears all dirty regions after redraw.
    */
   clearDirtyRegions(): void {
     this.dirtyRegions = []
@@ -552,15 +560,15 @@ export class NeaSmart {
   }
 
   /**
-   * Gets performance metrics
-   * @returns Performance metrics object with batching, caching, and pooling statistics
+   * Gets performance metrics for batching, caching, and pooling.
+   * @returns Performance metrics object
    */
   getMetrics(): typeof this.metrics {
     return { ...this.metrics }
   }
 
   /**
-   * Gets failed operations that are pending retry
+   * Gets failed operations that are pending retry.
    * @returns Map of failed operations with retry count and timestamp information
    */
   getFailedOperations(): Map<
@@ -571,8 +579,8 @@ export class NeaSmart {
   }
 
   /**
-   * Manually retry a specific failed operation
-   * @param operationId - ID of operation to retry
+   * Manually retry a specific failed operation.
+   * @param operationId ID of operation to retry
    * @returns True if retry was scheduled, false if operation not found
    */
   retryFailedOperation(operationId: string): boolean {
@@ -585,16 +593,14 @@ export class NeaSmart {
   }
 
   /**
-   * Clears all failed operations (useful for testing)
-   * Resets the retry system state
+   * Clears all failed operations and resets the retry system state.
    */
   clearFailedOperations(): void {
     this.failedOperations.clear()
   }
 
   /**
-   * Cleans up old cached items and pooled canvases
-   * Removes expired items based on timeout settings
+   * Cleans up old cached items and pooled canvases based on timeout settings.
    */
   cleanup(): void {
     const now = Date.now()
@@ -605,8 +611,7 @@ export class NeaSmart {
   }
 
   /**
-   * Cleans up old cached items
-   * Reduces cache sizes to prevent memory bloat
+   * Cleans up old cached items to prevent memory bloat.
    */
   private cleanupCache(): void {
     if (this.gradientCache.size > 100) {
@@ -626,8 +631,7 @@ export class NeaSmart {
   }
 
   /**
-   * Resets all systems (useful for testing)
-   * Clears all queues, caches, pools, and resets metrics to zero
+   * Resets all internal state, clearing queues, caches, pools, and metrics.
    */
   reset(): void {
     this.drawQueue = []

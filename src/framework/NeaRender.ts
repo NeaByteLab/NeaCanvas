@@ -1,10 +1,10 @@
 import type { NeaLayout } from '@framework/NeaLayout'
-import { ErrorCanvas } from '@constants/index'
+import { ErrorCanvas } from '@constants/ErrorCanvas'
 import { isBrowser } from '@canvas/Environment'
 
 /**
- * Handles browser rendering by displaying NeaLayout canvases directly
- * No unnecessary canvas creation - just gets and displays existing layouts
+ * Provides rendering for layouts in a browser environment by displaying their canvases directly.
+ * Used internally to show layouts without creating new canvases.
  */
 export class NeaRender {
   private canvasWidth: number
@@ -12,10 +12,10 @@ export class NeaRender {
   private canvasBackgroundColor: string | 'transparent'
 
   /**
-   * Creates a new render instance
-   * @param canvasWidth - Fixed canvas width from NeaCanvas.init()
-   * @param canvasHeight - Fixed canvas height from NeaCanvas.init()
-   * @param canvasBackgroundColor - Canvas background color from NeaCanvas.init()
+   * Constructs a new render instance for the given canvas dimensions and background color.
+   * @param canvasWidth Canvas width in pixels
+   * @param canvasHeight Canvas height in pixels
+   * @param canvasBackgroundColor Background color for the canvas
    */
   constructor(
     canvasWidth: number,
@@ -28,29 +28,27 @@ export class NeaRender {
   }
 
   /**
-   * Renders layouts by displaying their canvases directly in browser
-   * @param layouts - Map of layouts to render
+   * Renders all layouts by displaying their canvases in the browser.
+   * @param layouts Map of layouts to render
    * @throws Error if not in browser environment
-   * @returns void
    */
   render(layouts: Map<string, NeaLayout>): void {
     if (isBrowser()) {
       layouts.forEach(layout => {
-        layout.flush()
         this.createBrowserCompositeCanvas(layout)
       })
       return
     }
-    throw new Error(ErrorCanvas.BROWSER_ONLY_RENDERING)
+    throw new Error(ErrorCanvas.BROWSER_ONLY_RENDERING())
   }
 
   /**
-   * Displays a single layout canvas in the browser
-   * @param layout - Layout to display
+   * Displays a single layout canvas in the browser.
+   * @param layout Layout to display
    * @throws Error if canvas is not initialized
    */
   private createBrowserCompositeCanvas(layout: NeaLayout): void {
-    const layoutCanvas = layout.getCanvas()
+    const layoutCanvas = layout.getCanvasForFramework()
     if (!layoutCanvas) {
       throw new Error(ErrorCanvas.CANVAS_NOT_INITIALIZED)
     }

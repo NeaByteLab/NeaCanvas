@@ -1,6 +1,7 @@
 /**
  * Interfaces for NeaExport system
  * Handles export operations, canvas types, and export results
+ * @internal Framework use only, not exposed to public API
  */
 
 /** Canvas type union for cross-environment compatibility */
@@ -11,8 +12,8 @@ export type UniversalCanvasContext = CanvasRenderingContext2D
 export interface NodeCanvas extends HTMLCanvasElement {
   /**
    * Converts canvas to buffer with specified MIME type and quality
-   * @param mimeType - MIME type for the output format
-   * @param options - Quality options for the output
+   * @param mimeType MIME type for the output format
+   * @param options Quality options for the output
    * @returns Buffer containing the canvas data
    */
   toBuffer(mimeType: string, options?: { quality?: number }): Buffer
@@ -63,13 +64,13 @@ export interface LayoutCompositionData {
 export interface ExportOperation {
   /** Export format type */
   format: 'png' | 'jpeg' | 'jpg' | 'svg' | 'pdf'
-  /** Export quality setting (0.0 to 1.0) - must be between 0.0 and 1.0 */
+  /** Export quality setting (0.0 to 1.0) */
   quality?: number
   /** Operation timestamp */
   timestamp: number
-  /** Number of layouts exported - must be positive */
+  /** Number of layouts exported */
   layoutCount: number
-  /** Total number of shapes exported - must be non-negative */
+  /** Total number of shapes exported */
   totalShapes: number
 }
 
@@ -89,9 +90,9 @@ export interface ExportStats {
 
 /** Canvas creation options for export operations */
 export interface CanvasCreationOptions {
-  /** Canvas width in pixels - must be positive */
+  /** Canvas width in pixels */
   width: number
-  /** Canvas height in pixels - must be positive */
+  /** Canvas height in pixels */
   height: number
   /** Canvas type for specific export formats */
   type?: '2d' | 'pdf'
@@ -148,7 +149,7 @@ export interface PDFGenerationOptions {
 
 /** Image export configuration options */
 export interface ImageExportOptions {
-  /** Image quality (0.0 to 1.0) - must be between 0.0 and 1.0 */
+  /** Image quality (0.0 to 1.0) */
   quality: number
   /** Compression level for image export */
   compression: 'none' | 'fast' | 'good' | 'best'
@@ -188,13 +189,13 @@ export interface ExportError {
 export interface ExtendedExportConfig {
   /** Export format type */
   format: 'png' | 'jpeg' | 'jpg' | 'svg' | 'pdf'
-  /** Export quality setting (0.0 to 1.0) - must be between 0.0 and 1.0 */
+  /** Export quality setting (0.0 to 1.0) */
   quality?: number
   /** Progress callback function */
   progressCallback?: ExportProgressCallback
-  /** Number of retry attempts - must be non-negative */
+  /** Number of retry attempts */
   retryAttempts?: number
-  /** Export timeout in milliseconds - must be positive */
+  /** Export timeout in milliseconds */
   timeout?: number
   /** Additional metadata for export */
   metadata?: Record<string, unknown>

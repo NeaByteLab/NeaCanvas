@@ -1,4 +1,4 @@
-import { Default } from '@constants/index'
+import { Default } from '@constants/Default'
 
 /**
  * Checks if the current environment is Node.js
@@ -116,7 +116,10 @@ export function shouldUseHighQuality(): boolean {
     const navigator = window.navigator as Navigator & {
       hardwareConcurrency?: number
     }
-    return dpr >= Default.MIN_HIGH_DPI_RATIO || (navigator.hardwareConcurrency ?? 0) >= Default.MIN_HARDWARE_CORES
+    return (
+      dpr >= Default.MIN_HIGH_DPI_RATIO ||
+      (navigator.hardwareConcurrency ?? 0) >= Default.MIN_HARDWARE_CORES
+    )
   }
   return dpr >= Default.MIN_HIGH_DPI_RATIO
 }
