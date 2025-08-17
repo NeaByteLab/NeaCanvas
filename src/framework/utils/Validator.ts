@@ -9,8 +9,7 @@ import { Default } from '@constants/Default'
  */
 export class Validator {
   /**
-   * Validates drawing input values such as coordinates, shape name, and options object.
-   * Throws an error if any value is invalid.
+   * Validates drawing input values including coordinates, shape name, and options object.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape to validate
    * @param options Drawing configuration options to validate
@@ -76,8 +75,7 @@ export class Validator {
   }
 
   /**
-   * Validates color and style properties such as fill, stroke, strokeWidth, and opacity.
-   * Throws an error if any property is invalid.
+   * Validates color and style properties including fill, stroke, strokeWidth, and opacity.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param options Drawing configuration containing color and style properties
@@ -138,7 +136,6 @@ export class Validator {
 
   /**
    * Validates that a shape fits within the layout boundaries.
-   * Throws an error if the shape extends beyond the layout.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param options Drawing configuration containing position coordinates
@@ -178,7 +175,6 @@ export class Validator {
 
   /**
    * Validates font size for text shapes.
-   * Throws an error if the font size is invalid or out of range.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param fontSize Font size to validate
@@ -203,7 +199,6 @@ export class Validator {
 
   /**
    * Validates the text property for text shapes.
-   * Throws an error if the text property is invalid.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param text Text to validate
@@ -223,7 +218,6 @@ export class Validator {
 
   /**
    * Validates the lines property for multitext shapes.
-   * Throws an error if the lines property is invalid.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param lines Lines array to validate
@@ -243,7 +237,6 @@ export class Validator {
 
   /**
    * Validates the radius value for circle shapes.
-   * Throws an error if the radius is invalid or out of range.
    * @param layoutName Name of the layout for error context
    * @param radius Radius to validate
    * @throws Error if radius value is invalid or out of range
@@ -261,7 +254,6 @@ export class Validator {
 
   /**
    * Validates the radiusX value for ellipse shapes.
-   * Throws an error if the radiusX is invalid or out of range.
    * @param layoutName Name of the layout for error context
    * @param radiusX RadiusX to validate
    * @throws Error if radiusX value is invalid or out of range
@@ -281,7 +273,6 @@ export class Validator {
 
   /**
    * Validates the radiusY value for ellipse shapes.
-   * Throws an error if the radiusY is invalid or out of range.
    * @param layoutName Name of the layout for error context
    * @param radiusY RadiusY to validate
    * @throws Error if radiusY value is invalid or out of range
@@ -301,7 +292,6 @@ export class Validator {
 
   /**
    * Validates the types of line endpoints.
-   * Throws an error if the endpoint types are invalid.
    * @param layoutName Name of the layout for error context
    * @param endX End X coordinate to validate
    * @param endY End Y coordinate to validate
@@ -326,7 +316,6 @@ export class Validator {
 
   /**
    * Validates that line endpoints are valid numbers.
-   * Throws an error if the endpoint values are not valid numbers.
    * @param layoutName Name of the layout for error context
    * @param endX End X coordinate to validate
    * @param endY End Y coordinate to validate
@@ -346,7 +335,6 @@ export class Validator {
 
   /**
    * Validates that line endpoints are within the allowed coordinate range.
-   * Throws an error if the endpoint values are outside the valid range.
    * @param layoutName Name of the layout for error context
    * @param endX End X coordinate to validate
    * @param endY End Y coordinate to validate
@@ -371,7 +359,6 @@ export class Validator {
 
   /**
    * Validates the types of dimensions for rectangle shapes.
-   * Throws an error if the width or height types are invalid.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param width Width to validate
@@ -398,7 +385,6 @@ export class Validator {
 
   /**
    * Validates that dimensions are finite numbers.
-   * Throws an error if the width or height are not finite numbers.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param width Width to validate
@@ -411,6 +397,11 @@ export class Validator {
     width: number,
     height: number
   ): void {
+    if (width <= 0 || height <= 0) {
+      throw new Error(
+        ErrorCanvas.INVALID_DIMENSIONS(layoutName, shapeName, width, height)
+      )
+    }
     if (
       isNaN(width) ||
       isNaN(height) ||
@@ -430,7 +421,6 @@ export class Validator {
 
   /**
    * Validates that dimensions are within the allowed range.
-   * Throws an error if the width or height are outside the valid range.
    * @param layoutName Name of the layout for error context
    * @param shapeName Name of the shape for error context
    * @param width Width to validate

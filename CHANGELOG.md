@@ -22,6 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - 2025-08-18
+
+### Added
+- **Touch Support**: Automatic touch detection and gesture handling for mobile devices
+- **Spatial Indexing**: QuadTree implementation for O(log n) hit testing and spatial queries
+- **Advanced Batching**: Multi-level batching system (shape type → canvas state → spatial proximity)
+- **DPR Integration**: Dynamic device pixel ratio handling with coordinate transformation
+- **Touch Gestures**: Tap, double-tap, and hold gesture recognition
+- **Mobile Detection**: Automatic touch device and mobile browser detection
+- **Performance Monitoring**: Spatial index statistics and performance tracking
+
+### Enhanced
+- **NeaInteractive**: Spatial optimization for high-performance interactive systems
+- **NeaSmart**: Advanced dirty region management with spatial merging
+- **NeaLayout**: Automatic DPR monitoring and coordinate system updates
+- **Environment**: Touch device detection and coordinate transformation utilities
+- **Error Handling**: Centralized error management with clear, actionable messages
+
+### Technical Improvements
+- **Cognitive Complexity**: Refactored complex functions to meet ESLint standards
+- **Memory Management**: Optimized spatial data structures and cleanup procedures
+- **Code Quality**: Comprehensive ESLint fixes and code organization
+- **Type Safety**: Enhanced TypeScript strict mode compliance
+
+---
+
 ## [0.1.2] - 2025-08-17
 
 ### Added
@@ -119,6 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **0.1.3**: Touch support, spatial optimization, and advanced performance improvements
 - **0.1.2**: Interactive canvas system with click/hover events and browser positioning
 - **0.1.1**: Code quality improvements, better error handling, and internal refactoring
 - **0.1.0**: Initial release with core framework and 2D drawing capabilities

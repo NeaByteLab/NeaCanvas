@@ -12,7 +12,8 @@ export type {
   RenderConfig,
   ExportConfig,
   InteractiveEvent,
-  InteractiveShape
+  InteractiveShape,
+  TouchPoint
 } from '@interfaces/NeaOptions'
 
 // 🔒 INTERNAL - Framework interfaces are not exported

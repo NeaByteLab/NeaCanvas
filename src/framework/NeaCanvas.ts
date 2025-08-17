@@ -12,7 +12,7 @@ import type {
 } from '@interfaces/index'
 
 /**
- * Central interface for managing layouts, rendering, and exporting canvas content
+ * Central interface for managing layouts, rendering, and exporting canvas content.
  */
 export class NeaCanvas {
   private layouts: Map<string, NeaLayout> = new Map()
@@ -22,7 +22,7 @@ export class NeaCanvas {
   private isInitialized: boolean = false
 
   /**
-   * Creates a canvas instance and initializes renderer and exporter components
+   * Creates a canvas instance and initializes renderer and exporter components.
    * @param config Canvas configuration containing dimensions and styling options
    * @throws Error if configuration is invalid
    */
@@ -33,16 +33,12 @@ export class NeaCanvas {
       config.height,
       config.backgroundColor || 'transparent'
     )
-    this.renderer = new NeaRender(
-      config.width,
-      config.height,
-      config.backgroundColor || 'transparent'
-    )
+    this.renderer = new NeaRender(config.backgroundColor || 'transparent')
     this.isInitialized = true
   }
 
   /**
-   * Creates and validates a new canvas instance with the specified configuration
+   * Creates and validates a new canvas instance with the specified configuration.
    * @param config Canvas configuration containing dimensions and styling parameters
    * @returns Fully initialized NeaCanvas instance
    * @throws Error if canvas dimensions exceed maximum size
@@ -54,7 +50,7 @@ export class NeaCanvas {
   }
 
   /**
-   * Creates a new layout with the specified name and configuration, then adds it to the canvas
+   * Creates a new layout with the specified name and configuration, then adds it to the canvas.
    * @param name Unique identifier for the layout
    * @param config Layout configuration containing dimensions, position, and styling
    * @returns Promise resolving to the created layout instance
@@ -80,7 +76,7 @@ export class NeaCanvas {
   }
 
   /**
-   * Exports all layouts in the specified format
+   * Exports all layouts in the specified format.
    * @param options Export configuration
    * @returns Promise resolving to exported data as Buffer or Blob
    * @throws Error if export operation fails
@@ -90,16 +86,16 @@ export class NeaCanvas {
   }
 
   /**
-   * Renders all layouts in a browser environment
+   * Renders all layouts in a browser environment.
    * @param options Render configuration
-   * @throws Error if renderer is not properly initialized
+   * @throws Error if renderer is not properly initialized or browser environment is not available
    */
   render(options: RenderConfig): void {
     this.renderer.render(options, this.layouts)
   }
 
   /**
-   * Returns a copy of all layouts in the canvas
+   * Returns a copy of all layouts in the canvas.
    * @returns Map of layout names to layout instances
    */
   getLayouts(): Map<string, NeaLayout> {

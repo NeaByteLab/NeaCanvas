@@ -34,8 +34,9 @@ export default [
         clearTimeout: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        window: 'readonly',
         document: 'readonly',
-        window: 'readonly'
+        navigator: 'readonly'
       }
     },
     plugins: {

@@ -1,15 +1,24 @@
 /**
- * Public configuration interfaces for NeaCanvas users
- * These are the only interfaces users need to interact with the framework
+ * Public configuration interfaces for NeaCanvas users.
+ * These are the only interfaces users need to interact with the framework.
  * @public - Exposed to end users via main index.ts
  */
 
 /**
- * Interactive event data structure
+ * Interactive event data structure.
  */
 export interface InteractiveEvent {
   /** Event type indicating user interaction */
-  type: 'click' | 'hover'
+  type:
+    | 'click'
+    | 'hover'
+    | 'touch'
+    | 'touchstart'
+    | 'touchmove'
+    | 'touchend'
+    | 'tap'
+    | 'doubletap'
+    | 'hold'
   /** Name of the layout containing the shape */
   layoutName: string
   /** Timestamp when the event occurred */
@@ -20,10 +29,34 @@ export interface InteractiveEvent {
   x: number
   /** Y coordinate of the event in canvas space */
   y: number
+  /** Touch-specific properties (only present for touch events) */
+  touches?: TouchPoint[]
+  /** Number of simultaneous touches */
+  touchCount?: number
+  /** Touch pressure (0-1, if supported by device) */
+  pressure?: number | undefined
 }
 
 /**
- * Interactive shape data structure
+ * Touch point data structure for multi-touch support.
+ */
+export interface TouchPoint {
+  /** Unique identifier for this touch point */
+  identifier: number
+  /** X coordinate of the touch point */
+  x: number
+  /** Y coordinate of the touch point */
+  y: number
+  /** Touch pressure (0-1, if supported) */
+  pressure?: number
+  /** Touch radius in pixels (if supported) */
+  radiusX?: number
+  /** Touch radius in pixels (if supported) */
+  radiusY?: number
+}
+
+/**
+ * Interactive shape data structure.
  */
 export interface InteractiveShape {
   /** Unique identifier for the shape */
@@ -39,7 +72,7 @@ export interface InteractiveShape {
 }
 
 /**
- * Configuration for canvas initialization
+ * Configuration for canvas initialization.
  */
 export interface CanvasConfig {
   /** Canvas width in pixels */
@@ -51,7 +84,7 @@ export interface CanvasConfig {
 }
 
 /**
- * Configuration for layout creation
+ * Configuration for layout creation.
  */
 export interface LayoutConfig {
   /** Layout width in pixels */
@@ -71,7 +104,7 @@ export interface LayoutConfig {
 }
 
 /**
- * Configuration for drawing operations
+ * Configuration for drawing operations.
  */
 export interface DrawConfig {
   /** X coordinate */
@@ -242,18 +275,26 @@ export interface DrawConfig {
   /** Interactive event handlers */
   onClick?: (event: InteractiveEvent) => void
   onHover?: (event: InteractiveEvent) => void
+  /** Touch event handlers */
+  onTap?: (event: InteractiveEvent) => void
+  onTouch?: (event: InteractiveEvent) => void
+  onTouchStart?: (event: InteractiveEvent) => void
+  onTouchMove?: (event: InteractiveEvent) => void
+  onTouchEnd?: (event: InteractiveEvent) => void
+  onDoubleTap?: (event: InteractiveEvent) => void
+  onHold?: (event: InteractiveEvent) => void
 }
 
 /**
- * Configuration for render operations
+ * Configuration for render operations.
  */
 export interface RenderConfig {
-  /** Enable interactive mode */
+  /** Enables interactive features for the rendered content. */
   interactive?: boolean
 }
 
 /**
- * Configuration for export operations
+ * Configuration for export operations.
  */
 export interface ExportConfig {
   /** Export format type */

@@ -4,34 +4,26 @@ import { ErrorCanvas } from '@constants/ErrorCanvas'
 import { isBrowser } from '@canvas/Environment'
 
 /**
- * Provides rendering for layouts in a browser environment
+ * Manages the display of layout canvases in web browsers.
+ * Creates and positions canvas elements in the DOM.
  */
 export class NeaRender {
-  private canvasWidth: number
-  private canvasHeight: number
+  /** Background color for rendered canvas elements */
   private canvasBackgroundColor: string | 'transparent'
 
   /**
-   * Creates a new render instance with specified canvas dimensions and styling
-   * @param canvasWidth Canvas width in pixels for display sizing
-   * @param canvasHeight Canvas height in pixels for display sizing
-   * @param canvasBackgroundColor Background color for the canvas or 'transparent'
+   * Initializes a new render instance.
+   * @param canvasBackgroundColor Background color for canvas elements, defaults to transparent
    */
-  constructor(
-    canvasWidth: number,
-    canvasHeight: number,
-    canvasBackgroundColor: string = 'transparent'
-  ) {
-    this.canvasWidth = canvasWidth
-    this.canvasHeight = canvasHeight
+  constructor(canvasBackgroundColor: string = 'transparent') {
     this.canvasBackgroundColor = canvasBackgroundColor
   }
 
   /**
-   * Renders all layouts by displaying their canvases in the browser
-   * @param options Render configuration
-   * @param layouts Map of layouts to render
-   * @throws Error if not in browser environment
+   * Displays all layouts by rendering their canvases in the browser.
+   * @param options Configuration for rendering behavior
+   * @param layouts Collection of layouts to display
+   * @throws Error when not running in a browser environment
    */
   render(options: RenderConfig, layouts: Map<string, NeaLayout>): void {
     if (isBrowser()) {
@@ -47,20 +39,26 @@ export class NeaRender {
   }
 
   /**
-   * Creates and displays a layout canvas element in the browser DOM
-   * @param layout Layout instance containing the canvas to display
-   * @throws Error if canvas is not initialized
+   * Creates and positions a layout canvas element in the browser DOM.
+   * @param layout Layout containing the canvas to display
+   * @throws Error when the canvas has not been initialized
    */
   private createBrowserCompositeCanvas(layout: NeaLayout): void {
     const layoutCanvas = layout.getCanvasForFramework()
     if (!layoutCanvas) {
       throw new Error(ErrorCanvas.CANVAS_NOT_INITIALIZED)
     }
-    layoutCanvas.style.position = 'absolute'
-    layoutCanvas.style.left = `${layout.getConfig().x || 0}px`
-    layoutCanvas.style.top = `${layout.getConfig().y || 0}px`
-    layoutCanvas.style.width = `${this.canvasWidth}px`
-    layoutCanvas.style.height = `${this.canvasHeight}px`
+    const layoutConfig = layout.getConfig()
+    layoutCanvas.style.zIndex = '1'
+    layoutCanvas.style.display = 'block'
+    layoutCanvas.style.position = 'relative'
+    layoutCanvas.style.visibility = 'visible'
+    layoutCanvas.style.pointerEvents = 'auto'
+    layoutCanvas.style.left = `${layoutConfig.x || 0}px`
+    layoutCanvas.style.top = `${layoutConfig.y || 0}px`
+    layoutCanvas.style.width = `${layoutConfig.width}px`
+    layoutCanvas.style.height = `${layoutConfig.height}px`
+    layoutCanvas.setAttribute('data-layout', 'layout')
     if (this.canvasBackgroundColor !== 'transparent') {
       layoutCanvas.style.backgroundColor = this.canvasBackgroundColor
     }

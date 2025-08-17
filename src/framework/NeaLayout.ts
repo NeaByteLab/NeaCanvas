@@ -1,20 +1,24 @@
-import type { DirtyRegion } from '@framework/NeaSmart'
 import type { DrawConfig, LayoutConfig } from '@interfaces/index'
 import type { LayoutCanvas, LayoutCanvasContext } from '@interfaces/NeaLayout'
 import { Default } from '@constants/Default'
 import { ErrorCanvas } from '@constants/ErrorCanvas'
 import {
   isNode,
-  shouldUseHighDPI,
-  getHighDPICanvasSize,
-  getOptimalAntiAliasing
+  isBrowser,
+  shouldUseDPI,
+  getDPICanvasSize,
+  getOptimalRatio,
+  createCanvasBinding,
+  createCoordinateTransformer,
+  isTouchDevice,
+  isMobileDevice
 } from '@canvas/Environment'
 import { NeaSmart } from '@framework/NeaSmart'
 import { NeaInteractive } from '@framework/NeaInteractive'
 import { Validator } from '@framework/utils/Validator'
 
 /**
- * Manages layout creation and drawing operations with high DPI support
+ * Manages layout creation and drawing operations with DPI support.
  */
 export class NeaLayout {
   private config: LayoutConfig
@@ -35,9 +39,13 @@ export class NeaLayout {
   private defaultFill: string = Default.FILL
   private defaultStroke: string = Default.STROKE
   private defaultLineWidth: number = Default.LINE_WIDTH
+  private canvasBinding?: ReturnType<typeof createCanvasBinding> | undefined
+  private coordinateTransformer?:
+    | ReturnType<typeof createCoordinateTransformer>
+    | undefined
 
   /**
-   * Creates a new NeaLayout instance
+   * Creates a new NeaLayout instance.
    * @param config Layout configuration
    * @param layoutName Name of the layout for error tracking
    * @returns Promise resolving to NeaLayout instance
@@ -53,7 +61,7 @@ export class NeaLayout {
   }
 
   /**
-   * Initializes a new layout instance with configuration and name
+   * Initializes a new layout instance with configuration and name.
    * @param config Layout configuration containing dimensions and styling
    * @param layoutName Identifier for this layout used in error messages and debugging
    */
@@ -66,50 +74,70 @@ export class NeaLayout {
   }
 
   /**
-   * Initializes the internal canvas for drawing with high DPI support
-   * @throws Error if canvas package is not installed in Node.js environment
+   * Initializes the internal canvas for drawing with DPI support.
+   * @throws Error when canvas package is not installed in Node.js environment
    */
   private async initCanvas(): Promise<void> {
-    this.logicalWidth = this.config.width
-    this.logicalHeight = this.config.height
-    this.canvas = (await this.smart.getCanvas(
-      this.logicalWidth,
-      this.logicalHeight
-    )) as LayoutCanvas
-    this.ctx = this.canvas.getContext('2d') as LayoutCanvasContext
-    if (!this.ctx) {
-      throw new Error(ErrorCanvas.CANVAS_CONTEXT_POOL_FAILED(this.layoutName))
-    }
-    if (!isNode() && shouldUseHighDPI()) {
-      const dpiSize = getHighDPICanvasSize(
+    try {
+      this.logicalWidth = this.config.width
+      this.logicalHeight = this.config.height
+      this.canvas = (await this.smart.getCanvas(
         this.logicalWidth,
         this.logicalHeight
-      )
-      this.actualWidth = dpiSize.canvasWidth
-      this.actualHeight = dpiSize.canvasHeight
-      this.dpr = dpiSize.scale
-      this.canvas.width = this.actualWidth
-      this.canvas.height = this.actualHeight
-      this.canvas.style.width = `${this.logicalWidth}px`
-      this.canvas.style.height = `${this.logicalHeight}px`
-      this.ctx.scale(this.dpr, this.dpr)
-    } else {
-      this.actualWidth = this.logicalWidth
-      this.actualHeight = this.logicalHeight
-      this.dpr = 1
-    }
-    this.applyQualitySettings()
-    this.ctx.fillStyle = this.defaultFill
-    this.ctx.strokeStyle = this.defaultStroke
-    this.ctx.lineWidth = this.defaultLineWidth
-    if (this.defaultFill !== Default.FILL) {
-      this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight)
+      )) as LayoutCanvas
+      this.ctx = this.canvas.getContext('2d') as LayoutCanvasContext
+      if (!this.ctx) {
+        throw new Error(ErrorCanvas.CANVAS_CONTEXT_POOL_FAILED(this.layoutName))
+      }
+      if (isBrowser()) {
+        if (shouldUseDPI()) {
+          const dpiSize = getDPICanvasSize(
+            this.logicalWidth,
+            this.logicalHeight
+          )
+          this.dpr = dpiSize.scale
+          this.actualWidth = dpiSize.canvasWidth
+          this.actualHeight = dpiSize.canvasHeight
+          this.canvas.width = this.actualWidth
+          this.canvas.height = this.actualHeight
+          this.canvas.style.width = `${this.logicalWidth}px`
+          this.canvas.style.height = `${this.logicalHeight}px`
+          this.ctx.scale(this.dpr, this.dpr)
+        } else {
+          this.dpr = 1
+          this.actualWidth = this.logicalWidth
+          this.actualHeight = this.logicalHeight
+        }
+        this.setupDPRIntegration()
+      } else {
+        this.dpr = 1
+        this.actualWidth = this.logicalWidth
+        this.actualHeight = this.logicalHeight
+      }
+      this.updateCoordinateTransformer()
+      this.updateSpatialBounds()
+      this.applyQualitySettings()
+      this.ctx.fillStyle = this.defaultFill
+      this.ctx.strokeStyle = this.defaultStroke
+      this.ctx.lineWidth = this.defaultLineWidth
+      if (this.defaultFill !== Default.FILL) {
+        this.ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight)
+      }
+    } catch (error) {
+      if (
+        isNode() &&
+        error instanceof Error &&
+        error.message.includes('canvas')
+      ) {
+        throw new Error(ErrorCanvas.CANVAS_PACKAGE_MISSING(this.layoutName))
+      }
+      throw new Error(ErrorCanvas.CANVAS_INIT_NOT_IMPLEMENTED(this.layoutName))
     }
   }
 
   /**
-   * Applies anti-aliasing and quality settings to the context
-   * @throws Error if canvas context is not initialized
+   * Applies anti-aliasing and quality settings to the context.
+   * @throws Error when canvas context is not initialized
    */
   private applyQualitySettings(): void {
     if (!this.ctx) {
@@ -117,7 +145,7 @@ export class NeaLayout {
         ErrorCanvas.CANVAS_CONTEXT_NOT_INITIALIZED(this.layoutName)
       )
     }
-    const quality = getOptimalAntiAliasing()
+    const quality = getOptimalRatio()
     if (isNode()) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const nodeCtx = this.ctx as any
@@ -140,17 +168,119 @@ export class NeaLayout {
   }
 
   /**
-   * Draws a shape on the layout
+   * Sets up automatic DPR monitoring and coordinate transformation.
+   * @private Called automatically during canvas initialization
+   */
+  private setupDPRIntegration(): void {
+    if (!isBrowser() || !this.canvas) {
+      return
+    }
+    this.canvasBinding = createCanvasBinding(this.canvas as HTMLCanvasElement, {
+      onDPRChange: (newDPR: number) => this.handleDPRChange(newDPR),
+      onResize: (width: number, height: number, dpr: number) =>
+        this.handleCanvasResize(width, height, dpr),
+      autoResize: true
+    })
+    this.updateCoordinateTransformer()
+    this.updateInteractiveCoordinates()
+  }
+
+  /**
+   * Handles device pixel ratio changes with automatic system updates.
+   * @param newDPR New device pixel ratio
+   * @private Automatically called by canvas binding
+   */
+  private handleDPRChange(newDPR: number): void {
+    if (newDPR !== this.dpr) {
+      this.dpr = newDPR
+      this.updateCoordinateTransformer()
+      this.updateSpatialBounds()
+      this.updateInteractiveCoordinates()
+      this.flush()
+    }
+  }
+
+  /**
+   * Handles canvas resize events with automatic system updates.
+   * @param width New logical width
+   * @param height New logical height
+   * @param dpr Current device pixel ratio
+   * @private Automatically called by canvas binding
+   */
+  private handleCanvasResize(width: number, height: number, dpr: number): void {
+    this.dpr = dpr
+    this.logicalWidth = width
+    this.logicalHeight = height
+    this.actualWidth = Math.round(width * dpr)
+    this.actualHeight = Math.round(height * dpr)
+    this.updateCoordinateTransformer()
+    this.updateSpatialBounds()
+    this.updateInteractiveCoordinates()
+    this.flush()
+  }
+
+  /**
+   * Updates coordinate transformer for DPR scaling.
+   * @private Automatically called on DPR/resize changes
+   */
+  private updateCoordinateTransformer(): void {
+    if (this.canvas) {
+      this.coordinateTransformer = createCoordinateTransformer(
+        this.logicalWidth,
+        this.logicalHeight,
+        this.actualWidth,
+        this.actualHeight
+      )
+    }
+  }
+
+  /**
+   * Updates spatial bounds in NeaSmart and NeaInteractive systems.
+   * @private Automatically called on DPR/resize changes
+   */
+  private updateSpatialBounds(): void {
+    this.smart.updateSpatialBounds(this.actualWidth, this.actualHeight)
+    this.interactive.updateBounds(this.actualWidth, this.actualHeight)
+  }
+
+  /**
+   * Updates interactive coordinate system for hit testing.
+   * @private Automatically called on DPR/resize changes
+   */
+  private updateInteractiveCoordinates(): void {
+    if (this.coordinateTransformer) {
+      this.interactive.setCoordinateTransformer((x: number, y: number) => {
+        const transformed = this.coordinateTransformer!.toLogical(x, y)
+        return [transformed.x, transformed.y]
+      })
+    } else {
+      this.interactive.setCoordinateTransformer((x: number, y: number) => {
+        if (isBrowser() && this.canvas) {
+          const rect = this.canvas.getBoundingClientRect()
+          const scaleX = this.actualWidth / rect.width
+          const scaleY = this.actualHeight / rect.height
+          return [x / scaleX, y / scaleY]
+        }
+        return [x, y]
+      })
+    }
+  }
+
+  /**
+   * Draws a shape on the layout.
    * @param shapeName Name of the shape to draw
    * @param options Drawing options
    * @returns Shape ID for reference
-   * @throws Error if canvas context is not initialized, coordinates are invalid, or shape type is unknown
+   * @throws Error when canvas context is not initialized, coordinates are invalid, or shape type is unknown
    */
   draw(shapeName: string, options: DrawConfig): string {
     if (!this.ctx) {
       throw new Error(
         ErrorCanvas.CANVAS_CONTEXT_NOT_INITIALIZED(this.layoutName)
       )
+    }
+    if (!this.smart || !this.interactive) {
+      throw new Error(ErrorCanvas.RENDERER_NOT_INITIALIZED(this.layoutName))
     }
     Validator.validateDrawInputs(this.layoutName, shapeName, options)
     const { width: shapeWidth, height: shapeHeight } =
@@ -162,8 +292,8 @@ export class NeaLayout {
       options,
       shapeWidth,
       shapeHeight,
-      this.logicalWidth,
-      this.logicalHeight
+      this.config.width,
+      this.config.height
     )
     const shapeId = `${shapeName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
     const operationId = this.smart.queue(shapeName, options, this.layoutName)
@@ -178,7 +308,7 @@ export class NeaLayout {
   }
 
   /**
-   * Enables interactive features for this layout including click and hover events
+   * Enables interactive features for this layout including click, hover, and touch support.
    * @internal Only for NeaRender
    */
   enableInteractive(): void {
@@ -187,6 +317,23 @@ export class NeaLayout {
       this.interactive.setCanvasElement(canvas as HTMLCanvasElement)
     }
     this.interactive.setLayoutConfig(this.layoutName, this.config)
+    this.updateInteractiveCoordinates()
+    if (isTouchDevice()) {
+      try {
+        this.interactive.enableTouchSupport({
+          maxTouchPoints: Default.MAX_TOUCH_POINTS,
+          throttleDelay: Default.TOUCH_THROTTLE_DELAY
+        })
+        if (
+          isMobileDevice() &&
+          (this.config.width > 1920 || this.config.height > 1080)
+        ) {
+          console.warn(ErrorCanvas.MOBILE_PERFORMANCE_WARNING())
+        }
+      } catch {
+        console.warn(ErrorCanvas.TOUCH_NOT_SUPPORTED())
+      }
+    }
     this.interactive.enable()
   }
 
@@ -218,7 +365,7 @@ export class NeaLayout {
    * @param shapeName Either 'text' or 'multitext' to determine calculation method
    * @param options Drawing configuration containing text properties
    * @returns Object containing calculated width and height for text rendering
-   * @throws Error if fontSize is invalid or text/lines properties are malformed
+   * @throws Error when fontSize is invalid or text/lines properties are malformed
    */
   private calculateTextDimensions(
     shapeName: string,
@@ -248,7 +395,7 @@ export class NeaLayout {
    * Calculates dimensions for ellipse shapes using radiusX and radiusY properties.
    * @param options Drawing configuration containing ellipse radius properties
    * @returns Object containing calculated width and height based on ellipse radii
-   * @throws Error if radiusX or radiusY values are invalid or out of range
+   * @throws Error when radiusX or radiusY values are invalid or out of range
    */
   private calculateEllipseDimensions(options: DrawConfig): {
     width: number
@@ -268,7 +415,7 @@ export class NeaLayout {
    * Calculates dimensions for circle shapes using radius property.
    * @param options Drawing configuration containing circle radius property
    * @returns Object containing calculated width and height based on circle radius
-   * @throws Error if radius value is invalid or out of range
+   * @throws Error when radius value is invalid or out of range
    */
   private calculateCircleDimensions(options: DrawConfig): {
     width: number
@@ -286,7 +433,7 @@ export class NeaLayout {
    * Calculates dimensions for line shapes using start and end coordinates.
    * @param options Drawing configuration containing line endpoint properties
    * @returns Object containing calculated width and height based on line endpoints
-   * @throws Error if endpoint coordinates are invalid or out of range
+   * @throws Error when endpoint coordinates are invalid or out of range
    */
   private calculateLineDimensions(options: DrawConfig): {
     width: number
@@ -316,7 +463,7 @@ export class NeaLayout {
    * @param shapeName Name of the shape for logging purposes
    * @param options Drawing configuration containing width and height properties
    * @returns Object containing calculated width and height dimensions
-   * @throws Error if width or height values are invalid or out of range
+   * @throws Error when width or height values are invalid or out of range
    */
   private calculateRectangleDimensions(
     shapeName: string,
@@ -337,18 +484,19 @@ export class NeaLayout {
   }
 
   /**
-   * Flushes all queued operations to execute them
+   * Flushes all queued operations to execute them.
    * @private Auto-handled by getCanvas() and getShapes()
    */
   private flush(): void {
-    if (this.ctx) {
-      this.smart.flush(this.ctx)
+    if (!this.ctx) {
+      throw new Error(ErrorCanvas.RENDERING_NOT_IMPLEMENTED(this.layoutName))
     }
+    this.smart.flush(this.ctx)
   }
 
   /**
-   * Gets the internal canvas element
-   * @returns Canvas element or null if not initialized
+   * Gets the internal canvas element.
+   * @returns Canvas element or null when not initialized
    * @private Internal use only
    */
   private getCanvas(): LayoutCanvas | null {
@@ -357,7 +505,7 @@ export class NeaLayout {
   }
 
   /**
-   * Gets all shapes in this layout
+   * Gets all shapes in this layout.
    * @returns Map of shape IDs to shape data with type, options, and operation ID
    * @private Internal use only
    */
@@ -370,7 +518,7 @@ export class NeaLayout {
   }
 
   /**
-   * Gets the layout configuration
+   * Gets the layout configuration.
    * @returns Copy of layout configuration object
    */
   getConfig(): LayoutConfig {
@@ -378,8 +526,8 @@ export class NeaLayout {
   }
 
   /**
-   * Gets the internal canvas element for framework use
-   * @returns Canvas element or null if not initialized
+   * Gets the internal canvas element for framework use.
+   * @returns Canvas element or null when not initialized
    * @internal Only for NeaExport and NeaRender
    */
   getCanvasForFramework(): LayoutCanvas | null {
@@ -387,7 +535,7 @@ export class NeaLayout {
   }
 
   /**
-   * Gets all shapes for framework use
+   * Gets all shapes for framework use.
    * @returns Map of shape IDs to shape data including type, options, and operation ID
    * @internal Only for NeaExport
    */
@@ -399,26 +547,7 @@ export class NeaLayout {
   }
 
   /**
-   * Retrieves areas of the canvas that need to be redrawn
-   * @returns Array of dirty region objects containing coordinates and dimensions
-   * @private Internal optimization, auto-handled
-   */
-  // @ts-expect-error - Reserved for future development
-  private getDirtyRegions(): DirtyRegion[] {
-    return this.smart.getDirtyRegions()
-  }
-
-  /**
-   * Removes all dirty region markers after successful redraw operations
-   * @private Auto-handled after redraws
-   */
-  // @ts-expect-error - Reserved for future development
-  private clearDirtyRegions(): void {
-    this.smart.clearDirtyRegions()
-  }
-
-  /**
-   * Returns the canvas element back to the resource pool for memory management
+   * Returns the canvas element back to the resource pool for memory management.
    * @private Auto-handled during cleanup
    */
   private returnCanvasToPool(): void {
@@ -434,134 +563,24 @@ export class NeaLayout {
   }
 
   /**
-   * Releases all resources including canvas, shapes, and internal managers
+   * Releases all resources including canvas, shapes, and internal managers.
    * @private Auto-handled when layout is destroyed
    */
   private cleanup(): void {
+    this.canvasBinding?.dispose()
+    this.canvasBinding = undefined
+    this.coordinateTransformer = undefined
     this.returnCanvasToPool()
     this.shapes.clear()
     this.smart.cleanup()
   }
 
   /**
-   * Completely destroys the layout instance and frees all associated resources
+   * Completely destroys the layout instance and frees all associated resources.
    * @private Auto-handled when layout is removed
    */
   // @ts-expect-error - Reserved for future development
   private destroy(): void {
     this.cleanup()
-  }
-
-  /**
-   * Gets current performance snapshot
-   * @returns Current performance metrics with timestamp
-   */
-  getPerformanceSnapshot(): {
-    timestamp: number
-    metrics: {
-      batching: {
-        operationsBatched: number
-        efficiency: number
-      }
-      caching: {
-        cacheHits: number
-        cacheMisses: number
-        hitRate: number
-      }
-      pooling: {
-        poolHits: number
-        poolMisses: number
-        hitRate: number
-      }
-      dirtyRegions: {
-        count: number
-        redraws: number
-      }
-      failedOperations: {
-        count: number
-        retryCount: number
-      }
-    }
-    memoryUsage?: number
-  } {
-    const metrics = this.getDetailedPerformanceMetrics()
-    const snapshot = {
-      timestamp: Date.now(),
-      metrics
-    }
-    if (typeof process !== 'undefined' && process.memoryUsage) {
-      const memUsage = process.memoryUsage()
-      return {
-        ...snapshot,
-        memoryUsage: memUsage.heapUsed
-      }
-    }
-    return snapshot
-  }
-
-  /**
-   * Collects comprehensive performance metrics from all internal systems
-   * @returns Object containing batching, caching, pooling, and operation metrics
-   */
-  private getDetailedPerformanceMetrics(): {
-    batching: {
-      operationsBatched: number
-      efficiency: number
-    }
-    caching: {
-      cacheHits: number
-      cacheMisses: number
-      hitRate: number
-    }
-    pooling: {
-      poolHits: number
-      poolMisses: number
-      hitRate: number
-    }
-    dirtyRegions: {
-      count: number
-      redraws: number
-    }
-    failedOperations: {
-      count: number
-      retryCount: number
-    }
-  } {
-    const metrics = this.smart.getMetrics()
-    const failedOps = this.smart.getFailedOperations()
-    return {
-      batching: {
-        operationsBatched: metrics.operationsBatched,
-        efficiency: metrics.operationsBatched > 0 ? 100 : 0
-      },
-      caching: {
-        cacheHits: metrics.cacheHits,
-        cacheMisses: metrics.cacheMisses,
-        hitRate:
-          metrics.cacheHits + metrics.cacheMisses > 0
-            ? (metrics.cacheHits / (metrics.cacheHits + metrics.cacheMisses)) *
-              100
-            : 0
-      },
-      pooling: {
-        poolHits: metrics.poolHits,
-        poolMisses: metrics.poolMisses,
-        hitRate:
-          metrics.poolHits + metrics.poolMisses > 0
-            ? (metrics.poolHits / (metrics.poolHits + metrics.poolMisses)) * 100
-            : 0
-      },
-      dirtyRegions: {
-        count: this.smart.getDirtyRegions().length,
-        redraws: metrics.dirtyRegionRedraws
-      },
-      failedOperations: {
-        count: failedOps.size,
-        retryCount: Array.from(failedOps.values()).reduce(
-          (sum, op) => sum + op.retryCount,
-          0
-        )
-      }
-    }
   }
 }

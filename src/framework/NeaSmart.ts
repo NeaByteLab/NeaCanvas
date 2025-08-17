@@ -13,6 +13,7 @@ import { ToolRegistry } from '@canvas/tools/Registry'
 import { ErrorCanvas } from '@constants/ErrorCanvas'
 import { Default } from '@constants/Default'
 import { isNode } from '@canvas/Environment'
+import { QuadTree, type SpatialObject } from '@framework/utils/SpatialIndex'
 
 /** Canvas context type for cross-environment compatibility */
 type CanvasContext = CanvasRenderingContext2D | Record<string, unknown>
@@ -21,19 +22,19 @@ type CanvasContext = CanvasRenderingContext2D | Record<string, unknown>
 export type { DirtyRegion, SmartMetrics } from '@interfaces/NeaSmart'
 
 /**
- * Handles canvas drawing operations with batching, caching, pooling, and dirty region tracking.
+ * Handles canvas drawing operations with batching, spatial optimization, caching, pooling, and dirty region tracking.
  * Used internally by layout management for resource management.
  */
 export class NeaSmart {
+  private gradientCache = new Map<string, CanvasGradient>()
+  private patternCache = new Map<string, CanvasPattern>()
   private drawQueue: DrawOperation[] = []
   private maxQueueSize = Default.QUEUE_MAX_SIZE
-  private gradientCache = new Map<string, unknown>()
-  private patternCache = new Map<string, unknown>()
-  private shapeCache = new Map<string, unknown>()
   private canvasPool: PooledCanvas[] = []
   private maxPoolSize = Default.POOL_MAX_SIZE
   private poolTimeout = Default.POOL_TIMEOUT
   private dirtyRegions: DirtyRegion[] = []
+  private spatialDirtyIndex: QuadTree = new QuadTree(0, 0, 4096, 4096)
   private maxDirtyRegions = Default.DIRTY_REGIONS_MAX
   private metrics: SmartMetrics = {
     operationsBatched: 0,
@@ -43,12 +44,6 @@ export class NeaSmart {
     poolMisses: 0,
     dirtyRegionRedraws: 0
   }
-  private maxRetries = Default.MAX_RETRIES
-  private retryDelay = Default.RETRY_DELAY
-  private failedOperations: Map<
-    string,
-    { operation: DrawOperation; retryCount: number; lastRetry: number }
-  > = new Map()
   private readonly TRANSPARENT = 'transparent'
   private readonly SOURCE_OVER = 'source-over'
   private readonly NONE = 'none'
@@ -104,7 +99,7 @@ export class NeaSmart {
   }
 
   /**
-   * Executes a batch of draw operations, grouping by canvas state.
+   * Executes a batch of draw operations with multi-level grouping.
    * @param ctx Canvas context
    * @param operations Operations to execute
    * @throws Error if canvas context operations fail
@@ -114,14 +109,105 @@ export class NeaSmart {
       return
     }
     ;(ctx as CanvasRenderingContext2D).save()
-    const groupedOps = this.groupOperationsByState(operations)
-    for (const [stateKey, ops] of groupedOps) {
+    const optimizedGroups = this.createOptimizedBatches(operations)
+    for (const batch of optimizedGroups) {
+      this.executeBatchGroup(ctx, batch)
+    }
+    ;(ctx as CanvasRenderingContext2D).restore()
+  }
+
+  /**
+   * Creates optimized batches using multi-level grouping strategy.
+   * @param operations Operations to optimize
+   * @returns Array of optimized operation batches
+   */
+  private createOptimizedBatches(
+    operations: DrawOperation[]
+  ): DrawOperation[][] {
+    const shapeTypeGroups = this.groupOperationsByShapeType(operations)
+    const optimizedBatches: DrawOperation[][] = []
+    for (const [, shapeOps] of shapeTypeGroups) {
+      const stateGroups = this.groupOperationsByState(shapeOps)
+      for (const [, stateOps] of stateGroups) {
+        const spatialBatches = this.applySpatialGrouping(stateOps)
+        optimizedBatches.push(...spatialBatches)
+      }
+    }
+    return optimizedBatches
+  }
+
+  /**
+   * Groups operations by shape type for rendering pipeline.
+   * @param operations Operations to group
+   * @returns Map of shape types to operations
+   */
+  private groupOperationsByShapeType(
+    operations: DrawOperation[]
+  ): Map<string, DrawOperation[]> {
+    const groups = new Map<string, DrawOperation[]>()
+    if (operations.length === 0) {
+      return groups
+    }
+    for (const op of operations) {
+      if (!op || !op.shape) {
+        continue
+      }
+      const shapeType = op.shape
+      if (!groups.has(shapeType)) {
+        groups.set(shapeType, [])
+      }
+      groups.get(shapeType)!.push(op)
+    }
+    return groups
+  }
+
+  /**
+   * Applies spatial grouping to operations for cache locality.
+   * @param operations Operations to group spatially
+   * @returns Array of spatially grouped operation batches
+   */
+  private applySpatialGrouping(operations: DrawOperation[]): DrawOperation[][] {
+    if (operations.length <= 10) {
+      return [operations]
+    }
+    const sortedOps = operations.sort((a, b) => {
+      const aY = a.options.y || 0
+      const bY = b.options.y || 0
+      if (Math.abs(aY - bY) > 50) {
+        return aY - bY
+      }
+      const aX = a.options.x || 0
+      const bX = b.options.x || 0
+      return aX - bX
+    })
+    const batches: DrawOperation[][] = []
+    const batchSize = 25
+    for (let i = 0; i < sortedOps.length; i += batchSize) {
+      batches.push(sortedOps.slice(i, i + batchSize))
+    }
+    return batches
+  }
+
+  /**
+   * Executes a single optimized batch group.
+   * @param ctx Canvas context
+   * @param operations Operations in the batch
+   */
+  private executeBatchGroup(
+    ctx: CanvasContext,
+    operations: DrawOperation[]
+  ): void {
+    if (operations.length === 0) {
+      return
+    }
+    const firstOp = operations[0]
+    if (firstOp) {
+      const stateKey = this.getStateKey(firstOp.options)
       this.applyCanvasState(ctx, stateKey)
-      for (const op of ops) {
+      for (const op of operations) {
         this.executeDrawOperation(ctx, op)
       }
     }
-    ;(ctx as CanvasRenderingContext2D).restore()
   }
 
   /**
@@ -168,33 +254,112 @@ export class NeaSmart {
    * @throws Error if state parsing fails
    */
   private applyCanvasState(ctx: CanvasContext, stateKey: string): void {
-    const state = JSON.parse(stateKey)
+    const state = this.parseCanvasState(stateKey)
+    this.applyFillAndStroke(ctx, state)
+    this.applyOpacityAndBlending(ctx, state)
+    this.applyShadowEffects(ctx, state)
+  }
+
+  /**
+   * Parses canvas state from JSON string.
+   * @param stateKey State key to parse
+   * @returns Parsed state
+   * @throws Error if JSON parsing fails
+   */
+  private parseCanvasState(stateKey: string): CanvasState {
+    try {
+      return JSON.parse(stateKey)
+    } catch {
+      throw new Error(ErrorCanvas.INVALID_CANVAS_STATE(stateKey))
+    }
+  }
+
+  /**
+   * Applies fill and stroke properties to context.
+   * @param ctx Canvas context
+   * @param state Canvas state
+   */
+  private applyFillAndStroke(ctx: CanvasContext, state: CanvasState): void {
     if (state.fill !== this.TRANSPARENT) {
-      ctx.fillStyle = this.getCachedFillStyle(ctx, state.fill)
+      ctx.fillStyle = this.getCachedFillStyle(
+        ctx,
+        state.fill as string | { gradient: GradientConfig }
+      )
     }
     if (state.stroke !== this.TRANSPARENT) {
       ctx.strokeStyle = state.stroke
       ctx.lineWidth = state.lineWidth
     }
+  }
+
+  /**
+   * Applies opacity and blending properties to context.
+   * @param ctx Canvas context
+   * @param state Canvas state
+   */
+  private applyOpacityAndBlending(
+    ctx: CanvasContext,
+    state: CanvasState
+  ): void {
     if (state.opacity !== 1) {
       ctx.globalAlpha = state.opacity
     }
     if (state.blendMode !== this.SOURCE_OVER) {
       ctx.globalCompositeOperation = state.blendMode
     }
+  }
+
+  /**
+   * Applies shadow and glow effects to context.
+   * @param ctx Canvas context
+   * @param state Canvas state
+   */
+  private applyShadowEffects(ctx: CanvasContext, state: CanvasState): void {
     if (state.shadow !== this.NONE) {
-      const shadow = JSON.parse(state.shadow)
-      ctx.shadowOffsetX = shadow.offsetX
-      ctx.shadowOffsetY = shadow.offsetY
-      ctx.shadowBlur = shadow.blur
-      ctx.shadowColor = shadow.color
+      this.applyShadowEffect(ctx, state.shadow)
     }
     if (state.glow !== this.NONE) {
-      const glow = JSON.parse(state.glow)
-      ctx.shadowColor = glow.color
-      ctx.shadowBlur = glow.blur
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = 0
+      this.applyGlowEffect(ctx, state.glow)
+    }
+  }
+
+  /**
+   * Applies shadow effect to context.
+   * @param ctx Canvas context
+   * @param shadowData Shadow data string
+   * @throws Error if shadow JSON parsing fails
+   */
+  private applyShadowEffect(ctx: CanvasContext, shadowData: string): void {
+    try {
+      const shadow = JSON.parse(shadowData)
+      if (shadow && typeof shadow === 'object') {
+        ctx.shadowOffsetX = shadow.offsetX || 0
+        ctx.shadowOffsetY = shadow.offsetY || 0
+        ctx.shadowBlur = shadow.blur || 0
+        ctx.shadowColor = shadow.color || 'transparent'
+      }
+    } catch {
+      throw new Error(ErrorCanvas.INVALID_SHADOW_STATE(shadowData))
+    }
+  }
+
+  /**
+   * Applies glow effect to context.
+   * @param ctx Canvas context
+   * @param glowData Glow data string
+   * @throws Error if glow JSON parsing fails
+   */
+  private applyGlowEffect(ctx: CanvasContext, glowData: string): void {
+    try {
+      const glow = JSON.parse(glowData)
+      if (glow && typeof glow === 'object') {
+        ctx.shadowColor = glow.color || 'transparent'
+        ctx.shadowBlur = glow.blur || 0
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+      }
+    } catch {
+      throw new Error(ErrorCanvas.INVALID_GLOW_STATE(glowData))
     }
   }
 
@@ -208,27 +373,19 @@ export class NeaSmart {
     ctx: CanvasContext,
     operation: DrawOperation
   ): void {
-    import('@tools/Registry')
-      .then(({ ToolRegistry }) => {
-        const tool = ToolRegistry.get(operation.shape)
-        if (tool) {
-          try {
-            this.applyOperationOptions(ctx, operation.options)
-            tool(ctx as CanvasRenderingContext2D, operation.options)
-            this.failedOperations.delete(operation.id)
-          } catch (error) {
-            this.handleOperationFailure(operation, error as Error)
-          }
-        } else {
-          this.handleOperationFailure(
-            operation,
-            new Error(ErrorCanvas.UNKNOWN_SHAPE_TOOL(operation.shape))
-          )
-        }
+    try {
+      const tool = ToolRegistry.get(operation.shape)
+      if (tool) {
+        this.applyOperationOptions(ctx, operation.options)
+        tool(ctx as CanvasRenderingContext2D, operation.options)
+      } else {
+        throw new Error(ErrorCanvas.UNKNOWN_SHAPE_TOOL(operation.shape))
+      }
+    } catch (error) {
+      throw new Error(ErrorCanvas.OPERATION_FAILURE(operation.shape), {
+        cause: error
       })
-      .catch(error => {
-        this.handleOperationFailure(operation, error as Error)
-      })
+    }
   }
 
   /**
@@ -262,63 +419,6 @@ export class NeaSmart {
       ctx.shadowOffsetX = 0
       ctx.shadowOffsetY = 0
     }
-  }
-
-  /**
-   * Handles a failed draw operation and manages retry logic.
-   * @param operation Failed operation
-   * @param error Error that caused the failure
-   */
-  private handleOperationFailure(operation: DrawOperation, error: Error): void {
-    const existing = this.failedOperations.get(operation.id)
-    const retryCount = existing ? existing.retryCount + 1 : 1
-    const now = Date.now()
-    if (retryCount <= this.maxRetries) {
-      this.failedOperations.set(operation.id, {
-        operation,
-        retryCount,
-        lastRetry: now
-      })
-      setTimeout(() => {
-        this.retryOperation(operation.id)
-      }, this.retryDelay * retryCount)
-    } else {
-      this.failedOperations.delete(operation.id)
-      this.emitOperationFailed(operation, error)
-    }
-  }
-
-  /**
-   * Retries a failed operation by re-queuing it.
-   * @param operationId ID of operation to retry
-   */
-  private retryOperation(operationId: string): void {
-    const failed = this.failedOperations.get(operationId)
-    if (!failed) {
-      return
-    }
-    const { operation, retryCount } = failed
-    this.drawQueue.unshift(operation)
-    console.log(
-      ErrorCanvas.OPERATION_RETRY_LOG(operation.shape, retryCount + 1)
-    )
-    this.failedOperations.delete(operationId)
-  }
-
-  /**
-   * Emits a permanent failure event for an operation (logs to console).
-   * @param operation Failed operation
-   * @param error Error that caused the failure
-   */
-  private emitOperationFailed(operation: DrawOperation, error: Error): void {
-    // TODO: Implement event system for user notification
-    // For now, just log the permanent failure
-    console.error(ErrorCanvas.OPERATION_PERMANENT_FAILURE(operation.shape), {
-      operationId: operation.id,
-      shape: operation.shape,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    })
   }
 
   /**
@@ -468,7 +568,7 @@ export class NeaSmart {
   }
 
   /**
-   * Marks a region as dirty for partial redraws.
+   * Marks a region as dirty for partial redraws using spatial indexing.
    * @param x Region X coordinate
    * @param y Region Y coordinate
    * @param width Region width
@@ -476,32 +576,192 @@ export class NeaSmart {
    */
   markDirty(x: number, y: number, width: number, height: number): void {
     const region: DirtyRegion = { x, y, width, height }
-    const merged = this.mergeDirtyRegions(region)
+    const regionId = `dirty_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    const overlapping = this.spatialDirtyIndex.query(x, y, width, height)
+    if (overlapping.length > 0) {
+      const merged = this.mergeWithSpatialRegions(region, overlapping, regionId)
+      if (merged) {
+        return
+      }
+    }
+    this.dirtyRegions.push(region)
+    this.spatialDirtyIndex.insert({
+      id: regionId,
+      x,
+      y,
+      width,
+      height
+    })
+    if (this.dirtyRegions.length > this.maxDirtyRegions) {
+      this.cleanupOldestDirtyRegion()
+    }
+  }
+
+  /**
+   * Merges a new region with spatially overlapping regions.
+   * @param newRegion New region to merge
+   * @param overlapping Spatially overlapping regions from index
+   * @param regionId ID for the new region
+   * @returns True if region was merged, false if should be added as new
+   */
+  private mergeWithSpatialRegions(
+    newRegion: DirtyRegion,
+    overlapping: SpatialObject[],
+    regionId: string
+  ): boolean {
+    const bestCandidate = this.findBestMergeCandidate(newRegion, overlapping)
+    if (!bestCandidate) {
+      return false
+    }
+    return this.performSpatialMerge(bestCandidate, newRegion, regionId)
+  }
+
+  /**
+   * Finds the best merge candidate from overlapping regions.
+   * @param newRegion New region to merge
+   * @param overlapping Spatially overlapping regions
+   * @returns Best merge candidate or null
+   */
+  private findBestMergeCandidate(
+    newRegion: DirtyRegion,
+    overlapping: SpatialObject[]
+  ): { region: DirtyRegion; index: number; spatialId: string } | null {
+    let bestCandidate: {
+      region: DirtyRegion
+      index: number
+      spatialId: string
+    } | null = null
+    let smallestMergedArea = Infinity
+    for (const spatialObj of overlapping) {
+      const candidate = this.evaluateMergeCandidate(spatialObj, newRegion)
+      if (candidate && candidate.mergedArea < smallestMergedArea) {
+        smallestMergedArea = candidate.mergedArea
+        bestCandidate = {
+          region: candidate.region,
+          index: candidate.index,
+          spatialId: spatialObj.id
+        }
+      }
+    }
+    return bestCandidate
+  }
+
+  /**
+   * Evaluates a single merge candidate.
+   * @param spatialObj Spatial object to evaluate
+   * @param newRegion New region to merge with
+   * @returns Evaluation result or null
+   */
+  private evaluateMergeCandidate(
+    spatialObj: SpatialObject,
+    newRegion: DirtyRegion
+  ): { region: DirtyRegion; index: number; mergedArea: number } | null {
+    const regionIndex = this.dirtyRegions.findIndex(
+      r =>
+        r.x === spatialObj.x &&
+        r.y === spatialObj.y &&
+        r.width === spatialObj.width &&
+        r.height === spatialObj.height
+    )
+    if (regionIndex === -1) {
+      return null
+    }
+    const existingRegion = this.dirtyRegions[regionIndex]
+    if (!existingRegion || !this.regionsOverlap(existingRegion, newRegion)) {
+      return null
+    }
+    const merged = this.mergeRegions(existingRegion, newRegion)
     if (!merged) {
-      this.dirtyRegions.push(region)
-      if (this.dirtyRegions.length > this.maxDirtyRegions) {
-        this.dirtyRegions.shift()
+      return null
+    }
+    return {
+      region: existingRegion,
+      index: regionIndex,
+      mergedArea: merged.width * merged.height
+    }
+  }
+
+  /**
+   * Performs the actual spatial merge operation.
+   * @param candidate Best merge candidate
+   * @param newRegion New region to merge
+   * @param regionId ID for the merged region
+   * @returns True if merge was successful
+   */
+  private performSpatialMerge(
+    candidate: { region: DirtyRegion; index: number; spatialId: string },
+    newRegion: DirtyRegion,
+    regionId: string
+  ): boolean {
+    const merged = this.mergeRegions(candidate.region, newRegion)
+    if (!merged) {
+      return false
+    }
+    this.spatialDirtyIndex.remove({
+      id: candidate.spatialId,
+      x: candidate.region.x,
+      y: candidate.region.y,
+      width: candidate.region.width,
+      height: candidate.region.height
+    })
+    this.dirtyRegions[candidate.index] = merged
+    this.spatialDirtyIndex.insert({
+      id: regionId,
+      x: merged.x,
+      y: merged.y,
+      width: merged.width,
+      height: merged.height
+    })
+    return true
+  }
+
+  /**
+   * Updates the spatial index bounds for dirty regions when canvas is resized.
+   * @param width New canvas width
+   * @param height New canvas height
+   */
+  updateSpatialBounds(width: number, height: number): void {
+    const existingRegions = [...this.dirtyRegions]
+    this.spatialDirtyIndex = new QuadTree(0, 0, width, height)
+    for (let i = 0; i < existingRegions.length; i++) {
+      const region = existingRegions[i]
+      if (region) {
+        const regionId = `dirty_${Date.now()}_${i}`
+        this.spatialDirtyIndex.insert({
+          id: regionId,
+          x: region.x,
+          y: region.y,
+          width: region.width,
+          height: region.height
+        })
       }
     }
   }
 
   /**
-   * Merges a new dirty region with existing ones if they overlap.
-   * @param newRegion New region to merge
-   * @returns True if merged, false if added as new
+   * Removes the oldest dirty region from both array and spatial index.
    */
-  private mergeDirtyRegions(newRegion: DirtyRegion): boolean {
-    for (let i = 0; i < this.dirtyRegions.length; i++) {
-      const existing = this.dirtyRegions[i]
-      if (existing && this.regionsOverlap(existing, newRegion)) {
-        const merged = this.mergeRegions(existing, newRegion)
-        if (merged) {
-          this.dirtyRegions[i] = merged
-          return true
+  private cleanupOldestDirtyRegion(): void {
+    const oldestRegion = this.dirtyRegions.shift()
+    if (oldestRegion) {
+      const candidates = this.spatialDirtyIndex.query(
+        oldestRegion.x,
+        oldestRegion.y,
+        oldestRegion.width,
+        oldestRegion.height
+      )
+      for (const candidate of candidates) {
+        if (
+          candidate.x === oldestRegion.x &&
+          candidate.y === oldestRegion.y &&
+          candidate.width === oldestRegion.width &&
+          candidate.height === oldestRegion.height
+        ) {
+          this.spatialDirtyIndex.remove(candidate)
+          break
         }
       }
     }
-    return false
   }
 
   /**
@@ -556,47 +816,16 @@ export class NeaSmart {
    */
   clearDirtyRegions(): void {
     this.dirtyRegions = []
+    this.spatialDirtyIndex.clear()
     this.metrics.dirtyRegionRedraws++
   }
 
   /**
-   * Gets performance metrics for batching, caching, and pooling.
-   * @returns Performance metrics object
+   * Gets metrics for batching, caching, and pooling.
+   * @returns Metrics object
    */
   getMetrics(): typeof this.metrics {
     return { ...this.metrics }
-  }
-
-  /**
-   * Gets failed operations that are pending retry.
-   * @returns Map of failed operations with retry count and timestamp information
-   */
-  getFailedOperations(): Map<
-    string,
-    { operation: DrawOperation; retryCount: number; lastRetry: number }
-  > {
-    return new Map(this.failedOperations)
-  }
-
-  /**
-   * Manually retry a specific failed operation.
-   * @param operationId ID of operation to retry
-   * @returns True if retry was scheduled, false if operation not found
-   */
-  retryFailedOperation(operationId: string): boolean {
-    const failed = this.failedOperations.get(operationId)
-    if (!failed) {
-      return false
-    }
-    this.retryOperation(operationId)
-    return true
-  }
-
-  /**
-   * Clears all failed operations and resets the retry system state.
-   */
-  clearFailedOperations(): void {
-    this.failedOperations.clear()
   }
 
   /**
@@ -627,26 +856,6 @@ export class NeaSmart {
       entries.slice(-25).forEach(([key, value]) => {
         this.patternCache.set(key, value)
       })
-    }
-  }
-
-  /**
-   * Resets all internal state, clearing queues, caches, pools, and metrics.
-   */
-  reset(): void {
-    this.drawQueue = []
-    this.gradientCache.clear()
-    this.patternCache.clear()
-    this.shapeCache.clear()
-    this.canvasPool = []
-    this.dirtyRegions = []
-    this.metrics = {
-      operationsBatched: 0,
-      cacheHits: 0,
-      cacheMisses: 0,
-      poolHits: 0,
-      poolMisses: 0,
-      dirtyRegionRedraws: 0
     }
   }
 }

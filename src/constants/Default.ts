@@ -1,12 +1,12 @@
 /**
- * Default configuration values for canvas operations
- * Provides standard values for shapes, layouts, and export settings
+ * Default configuration values for canvas operations.
+ * Provides standard values for shapes, layouts, and export settings.
  * @internal Framework use only, not exposed to public API
  */
 export const Default = {
-  /** Default fill color for shapes - transparent by default */
+  /** Default fill color for shapes */
   FILL: 'transparent',
-  /** Default stroke color for shapes - black by default */
+  /** Default stroke color for shapes */
   STROKE: '#000000',
   /** Default line width for shape borders in pixels */
   LINE_WIDTH: 1,
@@ -95,12 +95,26 @@ export const Default = {
   /** Minimum device pixel ratio for high DPI */
   MIN_HIGH_DPI_RATIO: 2,
   /** Minimum CPU cores for hardware acceleration */
-  MIN_HARDWARE_CORES: 4
+  MIN_HARDWARE_CORES: 4,
+
+  // Touch and mobile interaction settings
+  /** Touch tap detection radius in pixels */
+  TOUCH_TAP_RADIUS: 20,
+  /** Touch hold duration in milliseconds */
+  TOUCH_HOLD_DURATION: 500,
+  /** Touch move threshold to distinguish from tap */
+  TOUCH_MOVE_THRESHOLD: 10,
+  /** Maximum time between taps for double-tap detection */
+  DOUBLE_TAP_DELAY: 300,
+  /** Touch event throttle delay in milliseconds */
+  TOUCH_THROTTLE_DELAY: 16,
+  /** Maximum simultaneous touch points to handle */
+  MAX_TOUCH_POINTS: 10
 } as const
 
 /**
- * MIME type constants for export operations
- * Defines content types for different file formats
+ * MIME type constants for export operations.
+ * Defines content types for different file formats.
  */
 export const MimeType = {
   /** PNG image format MIME type */
