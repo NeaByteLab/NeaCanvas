@@ -1,6 +1,6 @@
 {
   "name": "@neabyte/canvas",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "🎨 Universal canvas framework for Node.js and browser environments. Personal use only - Commercial license required for business use.",
   "type": "module",
   "main": "dist/index.js",

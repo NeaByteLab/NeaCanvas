@@ -7,12 +7,12 @@ import { Validator } from '@framework/utils/Validator'
 import type {
   CanvasConfig,
   LayoutConfig,
+  RenderConfig,
   ExportConfig
 } from '@interfaces/index'
 
 /**
- * Central interface for managing layouts, rendering, and exporting canvas content.
- * Handles layout creation, validation, and provides access to rendering and export features.
+ * Central interface for managing layouts, rendering, and exporting canvas content
  */
 export class NeaCanvas {
   private layouts: Map<string, NeaLayout> = new Map()
@@ -22,8 +22,8 @@ export class NeaCanvas {
   private isInitialized: boolean = false
 
   /**
-   * Constructs a new NeaCanvas instance with the provided configuration.
-   * @param config Canvas configuration parameters
+   * Creates a canvas instance and initializes renderer and exporter components
+   * @param config Canvas configuration containing dimensions and styling options
    * @throws Error if configuration is invalid
    */
   private constructor(config: CanvasConfig) {
@@ -42,9 +42,9 @@ export class NeaCanvas {
   }
 
   /**
-   * Initializes a new NeaCanvas instance.
-   * @param config Canvas configuration parameters
-   * @returns Instance of NeaCanvas
+   * Creates and validates a new canvas instance with the specified configuration
+   * @param config Canvas configuration containing dimensions and styling parameters
+   * @returns Fully initialized NeaCanvas instance
    * @throws Error if canvas dimensions exceed maximum size
    */
   static init(config: CanvasConfig): NeaCanvas {
@@ -54,10 +54,10 @@ export class NeaCanvas {
   }
 
   /**
-   * Creates a new layout and adds it to the canvas.
-   * @param name Layout identifier
-   * @param config Layout configuration parameters
-   * @returns The created layout instance
+   * Creates a new layout with the specified name and configuration, then adds it to the canvas
+   * @param name Unique identifier for the layout
+   * @param config Layout configuration containing dimensions, position, and styling
+   * @returns Promise resolving to the created layout instance
    * @throws Error if canvas is not initialized, layout already exists, or validation fails
    */
   async create(name: string, config: LayoutConfig): Promise<NeaLayout> {
@@ -80,7 +80,7 @@ export class NeaCanvas {
   }
 
   /**
-   * Exports all layouts in the specified format.
+   * Exports all layouts in the specified format
    * @param options Export configuration
    * @returns Promise resolving to exported data as Buffer or Blob
    * @throws Error if export operation fails
@@ -90,15 +90,16 @@ export class NeaCanvas {
   }
 
   /**
-   * Renders all layouts in a browser environment.
+   * Renders all layouts in a browser environment
+   * @param options Render configuration
    * @throws Error if renderer is not properly initialized
    */
-  render(): void {
-    this.renderer.render(this.layouts)
+  render(options: RenderConfig): void {
+    this.renderer.render(options, this.layouts)
   }
 
   /**
-   * Returns a copy of all layouts in the canvas.
+   * Returns a copy of all layouts in the canvas
    * @returns Map of layout names to layout instances
    */
   getLayouts(): Map<string, NeaLayout> {

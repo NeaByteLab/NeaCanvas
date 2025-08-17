@@ -22,6 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2] - 2025-08-17
+
+### Added
+- **Interactive Canvas System**: Simple interactive functionality for browser environments
+- **Event Handling**: Click and hover event support for all shapes
+- **NeaInteractive Framework**: New interactive manager for handling user interactions
+- **Interactive Interfaces**: `InteractiveEvent` and `InteractiveShape` type definitions
+- **Render Configuration**: `RenderConfig` interface with interactive mode support
+- **Shape Event Handlers**: `onClick` and `onHover` callbacks in `DrawConfig`
+- **Canvas Positioning**: Absolute positioning support for layouts in browser rendering
+- **Interactive Shape Tracking**: Automatic shape bounds calculation and event mapping
+
+### Changed
+- **NeaRender**: Updated to support interactive mode and canvas positioning
+- **NeaCanvas**: Enhanced render method to accept `RenderConfig` parameter
+- **NeaLayout**: Integrated interactive system with `enableInteractive()` method
+- **Drawing System**: All shapes now automatically register for interactive events
+- **Interface Exports**: Added new interactive interfaces to main exports
+
+### Technical Improvements
+- **Event System**: Efficient event delegation and shape hit detection
+- **Canvas Integration**: Seamless integration between rendering and interactive systems
+- **Framework Integration**: Interactive system integrated across all core components
+
+---
+
 ## [0.1.1] - 2025-08-17
 
 ### Changed
@@ -93,9 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **0.1.2**: Interactive canvas system with click/hover events and browser positioning
 - **0.1.1**: Code quality improvements, better error handling, and internal refactoring
 - **0.1.0**: Initial release with core framework and 2D drawing capabilities
-- **Future**: Interactive features, 3D support, and advanced optimizations
+- **Future**: 3D support, animations, and advanced optimizations
 
 ## Contributing
 

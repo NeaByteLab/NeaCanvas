@@ -5,6 +5,40 @@
  */
 
 /**
+ * Interactive event data structure
+ */
+export interface InteractiveEvent {
+  /** Event type indicating user interaction */
+  type: 'click' | 'hover'
+  /** Name of the layout containing the shape */
+  layoutName: string
+  /** Timestamp when the event occurred */
+  timestamp: number
+  /** Unique identifier of the shape that triggered the event */
+  shapeId?: string
+  /** X coordinate of the event in canvas space */
+  x: number
+  /** Y coordinate of the event in canvas space */
+  y: number
+}
+
+/**
+ * Interactive shape data structure
+ */
+export interface InteractiveShape {
+  /** Unique identifier for the shape */
+  shapeId: string
+  /** Drawing configuration options */
+  options: DrawConfig
+  /** Name of the layout containing the shape */
+  layoutName: string
+  /** Shape boundaries in canvas coordinates */
+  bounds: { x: number; y: number; width: number; height: number }
+  /** Layout configuration settings */
+  layoutConfig: { x?: number; y?: number; width: number; height: number }
+}
+
+/**
  * Configuration for canvas initialization
  */
 export interface CanvasConfig {
@@ -82,41 +116,69 @@ export interface DrawConfig {
   strokeWidth?: number
   /** Shadow effect for all shapes */
   shadow?: {
+    /** Horizontal shadow offset */
     offsetX?: number
+    /** Vertical shadow offset */
     offsetY?: number
+    /** Shadow blur radius */
     blur?: number
+    /** Shadow color */
     color?: string
+    /** Primary shadow configuration */
     primary?: {
+      /** Primary shadow horizontal offset */
       offsetX: number
+      /** Primary shadow vertical offset */
       offsetY: number
+      /** Primary shadow blur radius */
       blur: number
+      /** Primary shadow color */
       color: string
     }
+    /** Apply shadow inward instead of outward */
     inner?: boolean
+    /** Shadow spread distance */
     spread?: number
   }
   /** Glow effect for all shapes */
   glow?: {
+    /** Glow color */
     color?: string
+    /** Glow blur radius */
     blur?: number
+    /** Glow intensity level */
     intensity?: number
+    /** Glow spread distance */
     spread?: number
+    /** Glow application type */
     type?: 'outer' | 'inner' | 'both'
+    /** Multiple glow layers */
     multiple?: Array<{
+      /** Layer glow color */
       color: string
+      /** Layer glow blur radius */
       blur: number
+      /** Layer glow intensity level */
       intensity: number
     }>
   }
   /** Gradient fill for all shapes */
   gradient?: {
+    /** Gradient type */
     type: 'linear' | 'radial'
+    /** Color stops with position and color */
     stops: Array<{ offset: number; color: string }>
+    /** Starting X coordinate for linear gradient */
     x0?: number
+    /** Starting Y coordinate for linear gradient */
     y0?: number
+    /** Ending X coordinate for linear gradient */
     x1?: number
+    /** Ending Y coordinate for linear gradient */
     y1?: number
+    /** Inner radius for radial gradient */
     r0?: number
+    /** Outer radius for radial gradient */
     r1?: number
   }
   /** Blend mode for compositing */
@@ -125,19 +187,33 @@ export interface DrawConfig {
   opacity?: number
   /** Filter effects for all shapes */
   filters?: {
+    /** Blur filter amount */
     blur?: number
+    /** Brightness adjustment level */
     brightness?: number
+    /** Contrast adjustment level */
     contrast?: number
+    /** Saturation adjustment level */
     saturate?: number
+    /** Hue rotation in degrees */
     hueRotate?: number
+    /** Grayscale filter amount */
     grayscale?: number
+    /** Sepia filter amount */
     sepia?: number
+    /** Invert filter amount */
     invert?: number
+    /** Drop shadow filter configuration */
     dropShadow?: {
+      /** Drop shadow horizontal offset */
       offsetX: number
+      /** Drop shadow vertical offset */
       offsetY: number
+      /** Drop shadow blur radius */
       blur: number
+      /** Drop shadow color */
       color: string
+      /** Drop shadow spread distance */
       spread?: number
     }
   }
@@ -152,17 +228,28 @@ export interface DrawConfig {
     /** Transform origin point (center of rotation/scale) */
     origin?: { x: number; y: number }
   }
-  /** Mathematical smoothing effects for rendering quality */
+  /** Smoothing effects for rendering quality */
   smoothing?: {
-    /** Anti-aliasing quality */
+    /** Anti-aliasing quality level */
     antialiasing?: 'none' | 'low' | 'medium' | 'high'
     /** Curve smoothing factor (0.0 to 1.0) - must be between 0.0 and 1.0 */
     curveSmoothing?: number
-    /** Sub-pixel rendering */
+    /** Sub-pixel rendering mode */
     subPixel?: boolean
-    /** Mathematical precision level */
+    /** Precision level for calculations */
     precision?: 'low' | 'medium' | 'high'
   }
+  /** Interactive event handlers */
+  onClick?: (event: InteractiveEvent) => void
+  onHover?: (event: InteractiveEvent) => void
+}
+
+/**
+ * Configuration for render operations
+ */
+export interface RenderConfig {
+  /** Enable interactive mode */
+  interactive?: boolean
 }
 
 /**

@@ -10,9 +10,9 @@ import type {
   PooledCanvasElement
 } from '@interfaces/NeaSmart'
 import { ToolRegistry } from '@canvas/tools/Registry'
-import { isNode } from '@canvas/Environment'
-import { Default } from '@constants/Default'
 import { ErrorCanvas } from '@constants/ErrorCanvas'
+import { Default } from '@constants/Default'
+import { isNode } from '@canvas/Environment'
 
 /** Canvas context type for cross-environment compatibility */
 type CanvasContext = CanvasRenderingContext2D | Record<string, unknown>
@@ -21,8 +21,8 @@ type CanvasContext = CanvasRenderingContext2D | Record<string, unknown>
 export type { DirtyRegion, SmartMetrics } from '@interfaces/NeaSmart'
 
 /**
- * Provides optimization for layout drawing, including batching, caching, pooling, and dirty region tracking.
- * Used internally by layout management to improve performance and resource usage.
+ * Handles canvas drawing operations with batching, caching, pooling, and dirty region tracking.
+ * Used internally by layout management for resource management.
  */
 export class NeaSmart {
   private drawQueue: DrawOperation[] = []
@@ -125,7 +125,7 @@ export class NeaSmart {
   }
 
   /**
-   * Groups draw operations by similar canvas state for efficient batching.
+   * Groups draw operations by similar canvas state for batching.
    * @param operations Operations to group
    * @returns Map of state keys to operations
    */
@@ -350,7 +350,7 @@ export class NeaSmart {
   }
 
   /**
-   * Creates a gradient for the context, with caching.
+   * Creates a gradient for the context.
    * @param ctx Canvas context
    * @param gradientConfig Gradient configuration
    * @returns Canvas gradient

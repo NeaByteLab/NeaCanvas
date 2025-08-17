@@ -9,7 +9,10 @@ export type {
   CanvasConfig,
   LayoutConfig,
   DrawConfig,
-  ExportConfig
+  RenderConfig,
+  ExportConfig,
+  InteractiveEvent,
+  InteractiveShape
 } from '@interfaces/NeaOptions'
 
 // 🔒 INTERNAL - Framework interfaces are not exported

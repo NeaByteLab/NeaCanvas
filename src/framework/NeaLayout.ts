@@ -10,6 +10,7 @@ import {
   getOptimalAntiAliasing
 } from '@canvas/Environment'
 import { NeaSmart } from '@framework/NeaSmart'
+import { NeaInteractive } from '@framework/NeaInteractive'
 import { Validator } from '@framework/utils/Validator'
 
 /**
@@ -23,6 +24,7 @@ export class NeaLayout {
     { type: string; options: DrawConfig; operationId: string }
   > = new Map()
   private smart = new NeaSmart()
+  private interactive = new NeaInteractive()
   private canvas: LayoutCanvas | null = null
   private ctx: LayoutCanvasContext | null = null
   private dpr: number = 1
@@ -51,9 +53,9 @@ export class NeaLayout {
   }
 
   /**
-   * Private constructor
-   * @param config Layout configuration
-   * @param layoutName Name of the layout for error tracking
+   * Initializes a new layout instance with configuration and name
+   * @param config Layout configuration containing dimensions and styling
+   * @param layoutName Identifier for this layout used in error messages and debugging
    */
   private constructor(config: LayoutConfig, layoutName: string = 'unknown') {
     this.config = config
@@ -64,8 +66,7 @@ export class NeaLayout {
   }
 
   /**
-   * Initializes the internal canvas for drawing with high DPI support.
-   * Uses NeaSmart's canvas pool for resource management.
+   * Initializes the internal canvas for drawing with high DPI support
    * @throws Error if canvas package is not installed in Node.js environment
    */
   private async initCanvas(): Promise<void> {
@@ -107,8 +108,7 @@ export class NeaLayout {
   }
 
   /**
-   * Applies anti-aliasing and quality settings to the context.
-   * Uses NeaSmart's cached resources for consistent rendering.
+   * Applies anti-aliasing and quality settings to the context
    * @throws Error if canvas context is not initialized
    */
   private applyQualitySettings(): void {
@@ -140,7 +140,7 @@ export class NeaLayout {
   }
 
   /**
-   * Draws a shape on the layout using NeaSmart batching.
+   * Draws a shape on the layout
    * @param shapeName Name of the shape to draw
    * @param options Drawing options
    * @returns Shape ID for reference
@@ -168,12 +168,26 @@ export class NeaLayout {
     const shapeId = `${shapeName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
     const operationId = this.smart.queue(shapeName, options, this.layoutName)
     this.smart.markDirty(options.x, options.y, shapeWidth, shapeHeight)
+    this.interactive.set(shapeId, options, this.layoutName)
     this.shapes.set(shapeId, {
       type: shapeName,
       options: { ...options },
       operationId
     })
     return shapeId
+  }
+
+  /**
+   * Enables interactive features for this layout including click and hover events
+   * @internal Only for NeaRender
+   */
+  enableInteractive(): void {
+    const canvas = this.getCanvasForFramework()
+    if (canvas) {
+      this.interactive.setCanvasElement(canvas as HTMLCanvasElement)
+    }
+    this.interactive.setLayoutConfig(this.layoutName, this.config)
+    this.interactive.enable()
   }
 
   /**
@@ -323,8 +337,7 @@ export class NeaLayout {
   }
 
   /**
-   * Flushes all queued operations to execute them.
-   * This is where NeaSmart actually draws the shapes.
+   * Flushes all queued operations to execute them
    * @private Auto-handled by getCanvas() and getShapes()
    */
   private flush(): void {
@@ -334,18 +347,9 @@ export class NeaLayout {
   }
 
   /**
-   * Gets the layout configuration.
-   * @returns Copy of layout configuration object
-   */
-  getConfig(): LayoutConfig {
-    return { ...this.config }
-  }
-
-  /**
-   * Gets the internal canvas element.
-   * Automatically flushes pending operations before returning canvas.
+   * Gets the internal canvas element
    * @returns Canvas element or null if not initialized
-   * @private Internal use only, users don't need raw canvas access
+   * @private Internal use only
    */
   private getCanvas(): LayoutCanvas | null {
     this.flush()
@@ -353,10 +357,9 @@ export class NeaLayout {
   }
 
   /**
-   * Gets all shapes in this layout.
-   * Automatically flushes pending operations before returning shapes.
+   * Gets all shapes in this layout
    * @returns Map of shape IDs to shape data with type, options, and operation ID
-   * @private Internal use only, users don't need direct shape access
+   * @private Internal use only
    */
   private getShapes(): Map<
     string,
@@ -367,7 +370,16 @@ export class NeaLayout {
   }
 
   /**
-   * Gets the internal canvas element for framework use.
+   * Gets the layout configuration
+   * @returns Copy of layout configuration object
+   */
+  getConfig(): LayoutConfig {
+    return { ...this.config }
+  }
+
+  /**
+   * Gets the internal canvas element for framework use
+   * @returns Canvas element or null if not initialized
    * @internal Only for NeaExport and NeaRender
    */
   getCanvasForFramework(): LayoutCanvas | null {
@@ -375,7 +387,8 @@ export class NeaLayout {
   }
 
   /**
-   * Gets all shapes for framework use.
+   * Gets all shapes for framework use
+   * @returns Map of shape IDs to shape data including type, options, and operation ID
    * @internal Only for NeaExport
    */
   getShapesForFramework(): Map<
@@ -386,7 +399,8 @@ export class NeaLayout {
   }
 
   /**
-   * Gets dirty regions for partial redraws.
+   * Retrieves areas of the canvas that need to be redrawn
+   * @returns Array of dirty region objects containing coordinates and dimensions
    * @private Internal optimization, auto-handled
    */
   // @ts-expect-error - Reserved for future development
@@ -395,7 +409,7 @@ export class NeaLayout {
   }
 
   /**
-   * Clears dirty regions after redraw.
+   * Removes all dirty region markers after successful redraw operations
    * @private Auto-handled after redraws
    */
   // @ts-expect-error - Reserved for future development
@@ -404,7 +418,7 @@ export class NeaLayout {
   }
 
   /**
-   * Returns canvas to NeaSmart pool for reuse.
+   * Returns the canvas element back to the resource pool for memory management
    * @private Auto-handled during cleanup
    */
   private returnCanvasToPool(): void {
@@ -420,7 +434,7 @@ export class NeaLayout {
   }
 
   /**
-   * Cleanup method for proper resource management.
+   * Releases all resources including canvas, shapes, and internal managers
    * @private Auto-handled when layout is destroyed
    */
   private cleanup(): void {
@@ -430,8 +444,8 @@ export class NeaLayout {
   }
 
   /**
-   * Destroys the layout and cleans up all resources.
-   * @private Auto-handled by NeaCanvas when layout is removed
+   * Completely destroys the layout instance and frees all associated resources
+   * @private Auto-handled when layout is removed
    */
   // @ts-expect-error - Reserved for future development
   private destroy(): void {
@@ -439,7 +453,7 @@ export class NeaLayout {
   }
 
   /**
-   * Gets current performance snapshot.
+   * Gets current performance snapshot
    * @returns Current performance metrics with timestamp
    */
   getPerformanceSnapshot(): {
@@ -486,8 +500,8 @@ export class NeaLayout {
   }
 
   /**
-   * Gets detailed performance breakdown.
-   * @returns Object with various performance metrics and data
+   * Collects comprehensive performance metrics from all internal systems
+   * @returns Object containing batching, caching, pooling, and operation metrics
    */
   private getDetailedPerformanceMetrics(): {
     batching: {
